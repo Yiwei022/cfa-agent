@@ -97,14 +97,19 @@ class Agent:
             )
 
             final_message = final_response.choices[0].message
-            messages.append({"role": "assistant", "content": final_message.content})
+            final_content = final_message.content or ""
 
-            return messages, final_message.content
+            # Only append assistant message if there's content or tool calls
+            if final_content or final_message.tool_calls:
+                messages.append({"role": "assistant", "content": final_content})
+
+            return messages, final_content
 
         else:
             # No tool calls, just return the response
-            messages.append({"role": "assistant", "content": assistant_message.content})
-            return messages, assistant_message.content
+            content = assistant_message.content or ""
+            messages.append({"role": "assistant", "content": content})
+            return messages, content
 
     def _summarize_and_compress(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Summarize conversation and compress memory.

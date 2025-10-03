@@ -14,7 +14,7 @@ load_dotenv(PROJECT_DIR / ".env")
 
 # Mistral API configuration
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
-MISTRAL_MODEL = "mistral-large-latest"  # Supports function calling
+MISTRAL_MODEL = "mistral-small-latest"  # Supports function calling
 
 # Memory management
 MEMORY_THRESHOLD_KB = 50  # Threshold to trigger summarization
