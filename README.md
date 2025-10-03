@@ -81,7 +81,7 @@ cfa/
 
 ```bash
 cd /path/to/your/projects
-git clone <your-repo> cfa
+git clone https://github.com/bcivitcioglu/cfa-agent.git cfa
 cd cfa
 ```
 
