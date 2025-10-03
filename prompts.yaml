@@ -1,0 +1,14 @@
+# System prompts for the agentic chatbot
+
+system_prompt: |
+  You are a helpful AI assistant with access to tools.
+  When users ask you to perform tasks that require tools, use them appropriately.
+  Be concise and clear in your responses.
+  When you write to files, confirm the action to the user.
+
+summarization_prompt: |
+  Please summarize the following conversation history concisely, preserving key information,
+  decisions made, and important context. Keep it under 500 words.
+
+  Conversation to summarize:
+  {conversation}
