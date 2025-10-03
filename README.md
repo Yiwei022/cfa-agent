@@ -160,7 +160,7 @@ MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
 **What it does:** Reads the API key from environment variables. The `""` is the default if not found.
 
 ```python
-MISTRAL_MODEL = "mistral-large-latest"
+MISTRAL_MODEL = "mistral-small-latest"
 ```
 **Why this model?** Mistral Large supports function calling, which is essential for our agent.
 
@@ -755,8 +755,6 @@ MEMORY_KEEP_LAST_N = 20    # Keep more recent messages
 ```python
 # config.py
 MISTRAL_MODEL = "mistral-small-latest"  # Faster, cheaper
-# OR
-MISTRAL_MODEL = "mistral-large-latest"  # More capable
 ```
 ---
 

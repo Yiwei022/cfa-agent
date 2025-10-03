@@ -30,7 +30,7 @@ def test_config_constants():
     """Test configuration constants."""
     from config import MISTRAL_MODEL, MEMORY_THRESHOLD_KB, MEMORY_KEEP_LAST_N
 
-    assert MISTRAL_MODEL == "mistral-large-latest"
+    assert MISTRAL_MODEL == "mistral-small-latest"
     assert MEMORY_THRESHOLD_KB == 50
     assert MEMORY_KEEP_LAST_N == 10
 
