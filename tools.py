@@ -2,6 +2,8 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict
+import requests
+from bs4 import BeautifulSoup
 
 
 # Tool implementations
@@ -32,11 +34,78 @@ def get_date() -> str:
     """
     return datetime.now().strftime("%A, %B %d, %Y")
 
+def get_batch_newsletter() -> str:
+    """Scrape the latest AI news headlines from The Batch newsletter.
+
+    Returns:
+        Latest headlines from deeplearning.ai's The Batch as a formatted string
+    """
+    url = "https://www.deeplearning.ai/the-batch/"
+
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        headlines = []
+
+        # Find article headlines - adjust selectors based on actual page structure
+        articles = soup.find_all(['h2', 'h3', 'h4'], class_=lambda x: x and ('headline' in x.lower() or 'title' in x.lower()))
+
+        if not articles:
+            # Fallback: try to find common heading tags
+            articles = soup.find_all(['h2', 'h3'], limit=10)
+
+        for article in articles[:5]:  # Get top 5 headlines
+            text = article.get_text(strip=True)
+            if text and len(text) > 10:  # Filter out very short text
+                # Try to find the link associated with this headline
+                link = None
+
+                # Check if the heading itself contains a link
+                a_tag = article.find('a')
+                if a_tag and a_tag.get('href'):
+                    link = a_tag.get('href')
+                else:
+                    # Check if the heading is inside a link
+                    parent_a = article.find_parent('a')
+                    if parent_a and parent_a.get('href'):
+                        link = parent_a.get('href')
+                    else:
+                        # Look for the next link after this heading
+                        next_a = article.find_next('a')
+                        if next_a and next_a.get('href'):
+                            link = next_a.get('href')
+
+                # Make relative URLs absolute
+                if link:
+                    if link.startswith('/'):
+                        link = f"https://www.deeplearning.ai{link}"
+                    elif not link.startswith('http'):
+                        link = f"https://www.deeplearning.ai/{link}"
+                    headlines.append(f"• {text}\n  {link}")
+                else:
+                    headlines.append(f"• {text}")
+
+        if headlines:
+            return "Latest AI News from The Batch:\n\n" + "\n\n".join(headlines)
+        else:
+            return "Could not extract headlines. The page structure may have changed."
+
+    except requests.exceptions.RequestException as e:
+        return f"Error fetching newsletter: {str(e)}"
+    except Exception as e:
+        return f"Error parsing newsletter: {str(e)}"
 
 # Tool registry mapping tool names to functions
 TOOL_FUNCTIONS: Dict[str, Callable] = {
     "write_to_file": write_to_file,
     "get_date": get_date,
+    "get_batch_newsletter": get_batch_newsletter
 }
 
 
@@ -68,6 +137,18 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "get_date",
             "description": "Get today's date in a readable format",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_batch_newsletter",
+            "description": "Get the latest AI news headlines from deeplearning.ai's The Batch newsletter",
             "parameters": {
                 "type": "object",
                 "properties": {},
