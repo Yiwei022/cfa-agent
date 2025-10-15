@@ -1,3 +1,5 @@
+![Aivancity Agent Logo](imgs/logo.png)
+
 # Simple Agentic CLI Chatbot - Complete Educational Guide
 
 **A pedagogical demonstration of AI agents with function calling using Mistral API**
