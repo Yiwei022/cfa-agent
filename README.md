@@ -2,7 +2,10 @@
 
 **A pedagogical demonstration of AI agents with function calling using Mistral API**
 
-#### The project is built for PGE3-EN Coding for AI course in aivancity in 2025-2026 Academic Year for pedagogical purposes, with as simple as agentic tool calling can go. The aim is that by reading this README file, you should be able to understand the full codebase and the whole logic. 
+#### The project is built for PGE3-EN Coding for AI course in aivancity in 2025-2026 Academic Year for pedagogical purposes, with as simple as agentic tool calling can go. The aim is that by reading this README file, you should be able to understand the full codebase and the whole logic.
+
+> 🎨 **Phase 2 (Current Branch: `phase2-rich-tui`)**: This version includes Rich library enhancements for a beautiful terminal UI with panels, spinners, syntax highlighting, and markdown rendering. See the master branch for the simpler plain-text version.
+
 ---
 
 ## Table of Contents
@@ -30,6 +33,7 @@ By studying this codebase, you will understand:
 5. **API Integration** - How to work with modern LLM APIs (Mistral)
 6. **CLI Design** - How to build interactive command-line applications
 7. **Testing** - How to write unit tests for AI systems
+8. **Rich TUI (Phase 2)** - How to create beautiful terminal interfaces with Rich library
 
 ---
 
@@ -756,9 +760,243 @@ MEMORY_KEEP_LAST_N = 20    # Keep more recent messages
 # config.py
 MISTRAL_MODEL = "mistral-small-latest"  # Faster, cheaper
 ```
+
 ---
 
-## Next Steps
+## Phase 2: Rich TUI - Making it Beautiful
+
+**What changed:** We added the Rich library to make the CLI visually appealing. All the core logic (agent, tools, memory) stays exactly the same - we only changed how things are displayed.
+
+**Why this matters:** Separating presentation from logic is a key software design principle. You can switch between master (plain text) and phase2-rich-tui (beautiful UI) to see the exact same functionality with different presentation layers.
+
+### 7. Rich Integration - Enhanced main.py
+
+#### Setting Up Rich Console
+
+```python
+from rich.console import Console
+from rich.panel import Panel
+from rich.markdown import Markdown
+from rich.prompt import Prompt
+from rich.theme import Theme
+```
+
+**What are these?**
+- `Console` - Rich's replacement for `print()`, with color and formatting support
+- `Panel` - Creates bordered boxes around content
+- `Markdown` - Renders markdown text with formatting
+- `Prompt` - Rich's replacement for `input()`, with styling
+- `Theme` - Defines consistent colors throughout the app
+
+#### Creating the Console
+
+```python
+console = Console(theme=Theme({
+    "info": "cyan",
+    "success": "green",
+    "warning": "yellow",
+    "error": "red bold",
+    "dim": "dim"
+}))
+```
+
+**What this does:** Creates a console object with predefined color styles.
+
+**Why?** Instead of hardcoding colors everywhere, we define them once. `console.print("[success]Done![/success]")` will always be green.
+
+#### Welcome Banner
+
+```python
+console.print(Panel.fit(
+    "[bold cyan]Simple Agentic CLI Chatbot[/bold cyan]\n[dim]Powered by Mistral AI[/dim]",
+    border_style="cyan"
+))
+```
+
+**Before (Phase 1):**
+```python
+print("=" * 60)
+print("  Simple Agentic CLI Chatbot")
+print("=" * 60)
+```
+
+**What changed:** Panel.fit() creates a box that fits the content, with styled borders. `[bold cyan]` is Rich's markup syntax.
+
+**The markup syntax:** `[style]text[/style]` where style can be colors, bold, italic, dim, etc.
+
+#### User Input with Rich Prompt
+
+```python
+user_input = Prompt.ask("[bold cyan]You[/bold cyan]").strip()
+```
+
+**Before (Phase 1):**
+```python
+user_input = input("You: ").strip()
+```
+
+**What changed:** `Prompt.ask()` renders the prompt with Rich formatting. The prompt label is colored cyan and bold.
+
+**Why?** Consistent visual hierarchy - user input always looks the same.
+
+#### Displaying User Messages
+
+```python
+console.print(Panel(user_input, title="[bold cyan]👤 You[/bold cyan]", border_style="cyan"))
+```
+
+**What this does:** Wraps user input in a cyan-bordered panel with a title and emoji.
+
+**Visual result:**
+```
+╭─ 👤 You ────────────────────╮
+│ What's today's date?        │
+╰─────────────────────────────╯
+```
+
+#### Displaying Assistant Responses
+
+```python
+md = Markdown(response)
+console.print(Panel(md, title="[bold green]🤖 Assistant[/bold green]", border_style="green"))
+```
+
+**Before (Phase 1):**
+```python
+print(f"\nAssistant: {response}\n")
+```
+
+**What changed:**
+1. Response is parsed as Markdown (supports **bold**, `code`, lists, etc.)
+2. Wrapped in a green panel
+3. Emoji in title for visual distinction
+
+**Why Markdown?** LLMs often return formatted text. Rich renders it properly:
+- Code blocks get syntax highlighting
+- Lists are indented
+- Headers are bold
+
+#### Memory Statistics Command
+
+```python
+def print_stats(messages):
+    size_kb = get_memory_size_kb(messages)
+    percentage = (size_kb / MEMORY_THRESHOLD_KB) * 100
+
+    stats_text = f"""
+**Message Count:** {len(messages)} messages
+**Memory Size:** {size_kb:.2f} KB / {MEMORY_THRESHOLD_KB} KB ({percentage:.1f}%)
+**Status:** {'[warning]⚠️  Approaching threshold[/warning]' if size_kb > MEMORY_THRESHOLD_KB * 0.8 else '[success]✓ Healthy[/success]'}
+    """
+    console.print(Panel(stats_text.strip(), title="[bold cyan]Memory Statistics[/bold cyan]", border_style="cyan"))
+```
+
+**What's new:** A `/stats` command that shows memory usage.
+
+**The conditional formatting:** If memory is >80% of threshold, show warning (yellow). Otherwise show success (green).
+
+**Why?** Gives users visibility into the system state. This is called "observability" - making internal state visible.
+
+### 8. Rich Integration - Enhanced agent.py
+
+#### Accepting Console in Constructor
+
+```python
+def __init__(self, console: Console = None):
+    ...
+    self.console = console or Console()
+```
+
+**What this does:** Agent accepts an optional Console object. If not provided, creates its own.
+
+**Why?** This is called **dependency injection**. The agent doesn't create its own console - it receives one. This means:
+1. Tests can pass a mock console
+2. Main.py controls the console configuration
+3. Agent doesn't need to know about themes
+
+#### Live Spinner During API Calls
+
+```python
+from rich.live import Live
+from rich.spinner import Spinner
+
+with Live(Spinner("dots", text="[dim]Thinking...[/dim]"), console=self.console, transient=True):
+    response = self.client.chat.complete(...)
+```
+
+**What this does:** Shows an animated spinner while waiting for the API.
+
+**The `with` statement:** Python's context manager. The spinner appears when entering the block, disappears when exiting.
+
+**The `transient=True` flag:** Makes the spinner disappear after completion (doesn't clutter the screen).
+
+**Why?** User feedback! Without this, the app seems frozen during API calls. The spinner shows "I'm working on it."
+
+#### Displaying Tool Execution
+
+```python
+from rich.syntax import Syntax
+
+args_json = json.dumps(tool_args, indent=2)
+syntax = Syntax(args_json, "json", theme="monokai", line_numbers=False)
+
+tool_panel = Panel(
+    syntax,
+    title=f"[bold yellow]⚙️  Executing: {tool_name}[/bold yellow]",
+    border_style="yellow"
+)
+console.print(tool_panel)
+```
+
+**Before (Phase 1):**
+```python
+print(f"[Executing tool: {tool_name} with args: {tool_args}]")
+```
+
+**What changed:**
+1. Arguments formatted as pretty-printed JSON
+2. JSON gets syntax highlighting (keys in one color, values in another)
+3. Wrapped in yellow panel (distinct from user/assistant messages)
+
+**The Syntax object:** Takes code string, language ("json"), and theme. Automatically highlights.
+
+**Why yellow?** Visual hierarchy:
+- Cyan = User
+- Green = Assistant
+- Yellow = Tool/System
+
+#### Displaying Tool Results
+
+```python
+result_panel = Panel(
+    f"[dim]{result}[/dim]",
+    title=f"[bold yellow]✓ Result[/bold yellow]",
+    border_style="yellow"
+)
+console.print(result_panel)
+```
+
+**What this does:** Shows tool result in a dimmed (gray) panel.
+
+**Why dimmed?** Tool results are less important than the assistant's final response. Dimming de-emphasizes while still showing the information.
+
+#### Memory Compression Feedback
+
+```python
+compressed = compress_memory(messages, summary)
+self.console.print(f"[success]✓ Memory compressed: {len(messages)} → {len(compressed)} messages[/success]")
+```
+
+**What this does:** After summarization, shows before/after message count.
+
+**Why?** Transparency. User sees exactly what happened (e.g., "150 messages compressed to 11 messages").
+
+### Visual Comparison: Phase 1 vs Phase 2
+
+**Phase 1 (master branch):**
+```
+You: What's today's date?
+[Executing tool: get_date with args: {}]
 
 ### To Learn More:
 
