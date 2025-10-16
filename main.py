@@ -114,12 +114,12 @@ def print_stats(messages):
     size_kb = get_memory_size_kb(messages)
     percentage = (size_kb / MEMORY_THRESHOLD_KB) * 100
 
-    stats_text = f"""
-**Message Count:** {len(messages)} messages
-**Memory Size:** {size_kb:.2f} KB / {MEMORY_THRESHOLD_KB} KB ({percentage:.1f}%)
-**Status:** {'[warning]⚠️  Approaching threshold[/warning]' if size_kb > MEMORY_THRESHOLD_KB * 0.8 else '[success]✓ Healthy[/success]'}
-    """
-    console.print(Panel(stats_text.strip(), title="[bold user]Memory Statistics[/bold user]", border_style="user"))
+    stats_text =Markdown(f"""
+- **Message Count:** {len(messages)} messages
+- **Memory Size:** {size_kb:.2f} KB / {MEMORY_THRESHOLD_KB} KB ({percentage:.1f}%)
+- **Status:** {'[warning]⚠️  Approaching threshold[/warning]' if size_kb > MEMORY_THRESHOLD_KB * 0.8 else '[success]✓ Healthy[/success]'}
+    """)
+    console.print(Panel(stats_text, title="[bold user]Memory Statistics[/bold user]", border_style="user"))
 
 
 def main():
