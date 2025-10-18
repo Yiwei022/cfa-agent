@@ -17,7 +17,7 @@ MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
 MISTRAL_MODEL = "mistral-small-latest"  # Supports function calling
 
 # Memory management
-MEMORY_THRESHOLD_KB = 1  # Threshold to trigger summarization
+MEMORY_THRESHOLD_KB = 50  # Threshold to trigger summarization
 MEMORY_KEEP_LAST_N = 10   # Keep last N messages after summarization
 
 # Load prompts from YAML

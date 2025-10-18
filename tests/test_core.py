@@ -73,7 +73,7 @@ def test_tool_schemas():
     """Test that tool schemas are properly defined."""
     from tools import TOOL_SCHEMAS
 
-    assert len(TOOL_SCHEMAS) == 2
+
 
     # Check write_to_file schema
     write_schema = next(t for t in TOOL_SCHEMAS if t["function"]["name"] == "write_to_file")

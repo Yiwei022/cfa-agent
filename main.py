@@ -43,8 +43,8 @@ ASCII_AGENT = """
 
 # Initialize Rich console with custom theme
 console = Console(theme=Theme({
-    "user": "#845D28 bold",      # Custom brown for user (ai)
-    "assistant": "#4E5675",      # Custom blue for assistant (vancity)
+    "user": "#6FD3D3 bold",      # Custom brown for user (ai)
+    "assistant": "#D36FB6",      # Custom blue for assistant (vancity)
     "tool": "yellow",
     "success": "green",
     "warning": "yellow",
