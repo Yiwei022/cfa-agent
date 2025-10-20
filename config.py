@@ -17,8 +17,15 @@ MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
 MISTRAL_MODEL = "mistral-small-latest"  # Supports function calling
 
 # Memory management
-MEMORY_THRESHOLD_KB = 1  # Threshold to trigger summarization
-MEMORY_KEEP_LAST_N = 10   # Keep last N messages after summarization
+MEMORY_THRESHOLD_KB = 20  # Threshold to trigger summarization
+MEMORY_KEEP_LAST_N = 5   # Keep last N messages after summarization
+
+# Tool calling limits
+MAX_TOOL_ROUNDS = 5  # Maximum number of tool call rounds per user message
+
+# API Rate limiting (free tier: 1 request per second)
+MISTRAL_RATE_LIMIT_RPS = 1.0  # Requests per second (1 RPS for free tier)
+MISTRAL_MIN_DELAY = 1.0 / MISTRAL_RATE_LIMIT_RPS  # Minimum delay between API calls in seconds
 
 # Load prompts from YAML
 def load_prompts():

@@ -186,9 +186,6 @@ def main():
                     console.print("[dim]Type /help for available commands[/dim]\n")
                     continue
 
-            # Display user message in a panel
-            console.print(Panel(user_input, title="[bold user]👤 You[/bold user]", border_style="user"))
-
             # Process message with agent
             try:
                 messages, response = agent.process_message(messages, user_input)

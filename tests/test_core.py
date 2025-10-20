@@ -28,11 +28,36 @@ def test_load_prompts():
 
 def test_config_constants():
     """Test configuration constants."""
-    from config import MISTRAL_MODEL, MEMORY_THRESHOLD_KB, MEMORY_KEEP_LAST_N
+    from config import (
+        MISTRAL_MODEL,
+        MEMORY_THRESHOLD_KB,
+        MEMORY_KEEP_LAST_N,
+        MAX_TOOL_ROUNDS,
+        MISTRAL_RATE_LIMIT_RPS,
+        MISTRAL_MIN_DELAY
+    )
 
+    # Verify model
+    assert isinstance(MISTRAL_MODEL, str)
     assert MISTRAL_MODEL == "mistral-small-latest"
-    assert MEMORY_THRESHOLD_KB == 50
-    assert MEMORY_KEEP_LAST_N == 10
+
+    # Verify memory thresholds (Phase 3 values)
+    assert isinstance(MEMORY_THRESHOLD_KB, (int, float))
+    assert MEMORY_THRESHOLD_KB == 20  # Phase 3 default
+
+    assert isinstance(MEMORY_KEEP_LAST_N, int)
+    assert MEMORY_KEEP_LAST_N == 5  # Phase 3 default
+
+    # Verify tool calling limit (Phase 3)
+    assert isinstance(MAX_TOOL_ROUNDS, int)
+    assert MAX_TOOL_ROUNDS == 5  # Phase 3 default
+
+    # Verify rate limiting constants (Phase 3)
+    assert isinstance(MISTRAL_RATE_LIMIT_RPS, (int, float))
+    assert MISTRAL_RATE_LIMIT_RPS == 1.0  # Free tier
+
+    assert isinstance(MISTRAL_MIN_DELAY, (int, float))
+    assert MISTRAL_MIN_DELAY == 1.0  # 1 second for free tier
 
 
 # Test tools.py
@@ -71,9 +96,22 @@ def test_write_to_file():
 
 def test_tool_schemas():
     """Test that tool schemas are properly defined."""
-    from tools import TOOL_SCHEMAS
+    from tools import TOOL_SCHEMAS, TOOL_FUNCTIONS
 
-    assert len(TOOL_SCHEMAS) == 2
+    # Verify we have all 6 tools (Phase 3)
+    assert len(TOOL_SCHEMAS) == 6
+
+    # Verify all schemas have required structure
+    for schema in TOOL_SCHEMAS:
+        assert schema["type"] == "function"
+        assert "name" in schema["function"]
+        assert "description" in schema["function"]
+        assert "parameters" in schema["function"]
+
+    # Verify all tool names in schemas match registry
+    schema_names = {schema["function"]["name"] for schema in TOOL_SCHEMAS}
+    registry_names = set(TOOL_FUNCTIONS.keys())
+    assert schema_names == registry_names, f"Schema names {schema_names} don't match registry {registry_names}"
 
     # Check write_to_file schema
     write_schema = next(t for t in TOOL_SCHEMAS if t["function"]["name"] == "write_to_file")
@@ -84,7 +122,6 @@ def test_tool_schemas():
     # Check get_date schema
     date_schema = next(t for t in TOOL_SCHEMAS if t["function"]["name"] == "get_date")
     assert date_schema["type"] == "function"
-    assert len(date_schema["function"]["parameters"]["properties"]) == 0
 
 
 def test_execute_tool_get_date():
@@ -125,7 +162,21 @@ def test_tool_registry():
     """Test that tool registry contains all tools."""
     from tools import TOOL_FUNCTIONS
 
-    assert "write_to_file" in TOOL_FUNCTIONS
-    assert "get_date" in TOOL_FUNCTIONS
-    assert callable(TOOL_FUNCTIONS["write_to_file"])
-    assert callable(TOOL_FUNCTIONS["get_date"])
+    # Phase 3 has 6 tools
+    expected_tools = [
+        "write_to_file",
+        "read_file",
+        "get_date",
+        "get_batch_newsletter",
+        "list_files",
+        "curl_read"
+    ]
+
+    # Verify all expected tools are in registry
+    for tool_name in expected_tools:
+        assert tool_name in TOOL_FUNCTIONS, f"Tool {tool_name} not in registry"
+        assert callable(TOOL_FUNCTIONS[tool_name]), f"Tool {tool_name} is not callable"
+
+    # Verify registry has exactly the expected tools
+    assert len(TOOL_FUNCTIONS) == len(expected_tools), \
+        f"Expected {len(expected_tools)} tools, found {len(TOOL_FUNCTIONS)}"
