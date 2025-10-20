@@ -99,6 +99,8 @@ def test_create_summary_request():
 
 def test_compress_memory():
     """Test memory compression."""
+    from config import MEMORY_KEEP_LAST_N
+
     messages = [
         {"role": "user", "content": f"Message {i}"}
         for i in range(20)
@@ -107,8 +109,8 @@ def test_compress_memory():
     summary = "This is a summary of the conversation"
     compressed = compress_memory(messages, summary)
 
-    # Should have summary + last 10 messages (MEMORY_KEEP_LAST_N)
-    assert len(compressed) == 11
+    # Should have summary + last N messages (MEMORY_KEEP_LAST_N from config)
+    assert len(compressed) == MEMORY_KEEP_LAST_N + 1
     assert compressed[0]["role"] == "system"
     assert summary in compressed[0]["content"]
 

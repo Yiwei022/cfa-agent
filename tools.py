@@ -25,6 +25,18 @@ def write_to_file(filename: str, content: str) -> str:
     except Exception as e:
         return f"Error writing to file: {str(e)}"
 
+def read_file(filename: str) -> str:
+    """Read content from a file.
+
+    Args:
+        filename: Name of the file to read from
+    """
+    try:
+        filepath = Path(filename)
+        content = filepath.read_text()
+        return content
+    except Exception as e:
+        return f"Error reading file: {str(e)}"
 
 def get_date() -> str:
     """Get today's date in a readable format.
@@ -101,11 +113,49 @@ def get_batch_newsletter() -> str:
     except Exception as e:
         return f"Error parsing newsletter: {str(e)}"
 
+def list_files() -> str:
+    """List files in the current directory.
+
+    Returns:
+        List of filenames as a formatted string
+    """
+    try:
+        files = [f.name for f in Path('.').iterdir() if f.is_file()]
+        if files:
+            return "Files in current directory:\n" + "\n".join(f"• {file}" for file in files)
+        else:
+            return "No files found in the current directory."
+    except Exception as e:
+        return f"Error listing files: {str(e)}"
+
+def curl_read(url: str) -> str:
+    """Fetch and return the content of a URL.
+
+    Args:
+        url: The URL to fetch
+    Returns:
+        The content of the URL or an error message
+    """
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        return response.text  # Return 
+    except requests.exceptions.RequestException as e:
+        return f"Error fetching URL: {str(e)}"
+    except Exception as e:
+        return f"Error reading URL: {str(e)}"
+    
 # Tool registry mapping tool names to functions
 TOOL_FUNCTIONS: Dict[str, Callable] = {
     "write_to_file": write_to_file,
+    "read_file": read_file,
     "get_date": get_date,
-    "get_batch_newsletter": get_batch_newsletter
+    "get_batch_newsletter": get_batch_newsletter,
+    "list_files": list_files,
+    "curl_read": curl_read,
 }
 
 
@@ -135,6 +185,23 @@ TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "read_file",
+            "description": "Read content from a file in the current directory",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "description": "The name of the file to read from"
+                    }
+                },
+                "required": ["filename"]
+            }
+        }    
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_date",
             "description": "Get today's date in a readable format",
             "parameters": {
@@ -155,7 +222,37 @@ TOOL_SCHEMAS = [
                 "required": []
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_files",
+            "description": "List files in the current directory",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "curl_read",
+            "description": "Fetch and return the content of a URL",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The URL to fetch"
+                    }
+                },
+                "required": ["url"]
+            }
+        }
     }
+
 ]
 
 

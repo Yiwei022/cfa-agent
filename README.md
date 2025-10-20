@@ -1,8 +1,15 @@
+![Aivancity Agent Logo](imgs/logo.png)
+
 # Simple Agentic CLI Chatbot - Complete Educational Guide
 
 **A pedagogical demonstration of AI agents with function calling using Mistral API**
 
-#### The project is built for PGE3-EN Coding for AI course in aivancity in 2025-2026 Academic Year for pedagogical purposes, with as simple as agentic tool calling can go. The aim is that by reading this README file, you should be able to understand the full codebase and the whole logic. 
+#### The project is built for PGE3-EN Coding for AI course in aivancity in 2025-2026 Academic Year for pedagogical purposes, with as simple as agentic tool calling can go. The aim is that by reading this README file, you should be able to understand the full codebase and the whole logic.
+
+> 🚀 **Phase 3**: Building on the Rich TUI from Phase 2, this version adds production-ready enhancements:
+> - **Rate Limiting**: Respects Mistral API free tier limits (1 request/second)
+> - **Multi-Round Tool Calling**: Agent can chain multiple tool operations seamlessly
+
 ---
 
 ## Table of Contents
@@ -30,7 +37,9 @@ By studying this codebase, you will understand:
 5. **API Integration** - How to work with modern LLM APIs (Mistral)
 6. **CLI Design** - How to build interactive command-line applications
 7. **Testing** - How to write unit tests for AI systems
-
+8. **Rich TUI** - How to create beautiful terminal interfaces with Rich library
+9. **Rate Limiting** - How to handle API rate limits gracefully
+10. **Multi-Round Tool Calling** - How to enable agents to chain tool operations
 ---
 
 ## Architecture Overview
@@ -107,6 +116,10 @@ pip install -r requirements.txt
 - `mistralai` - Official Mistral AI Python client
 - `pytest` - Testing framework
 - `python-dotenv` - Loads environment variables from .env file
+- `rich` - Beautiful terminal UI with colors, panels, and formatting
+- `requests` - HTTP library for web requests and scraping
+- `beautifulsoup4` - HTML parsing for web scraping
+- `pyyaml` - YAML configuration file parsing
 
 ### Step 4: Set Up API Key
 
@@ -135,7 +148,10 @@ python main.py
 Try these example interactions:
 - "What is today's date?"
 - "Write a haiku about Python to haiku.txt"
+- "Get the latest AI news from The Batch"
+- "List files in the current directory"
 - "/help" to see commands
+- "/stats" to see memory statistics
 - "/exit" to quit
 
 ---
@@ -165,14 +181,25 @@ MISTRAL_MODEL = "mistral-small-latest"
 **Why this model?** Mistral Large supports function calling, which is essential for our agent.
 
 ```python
-MEMORY_THRESHOLD_KB = 50
-MEMORY_KEEP_LAST_N = 10
+MEMORY_THRESHOLD_KB = 20  # Threshold to trigger summarization
+MEMORY_KEEP_LAST_N = 5    # Keep last N messages after summarization
 ```
 **What these do:**
-- When conversation exceeds ```MEMORY_THRESHOLD_KB```, we will trigger summarization
-- After summarizing, keep only the last ```MEMORY_KEEP_LAST_N``` messages + summary
+- When conversation exceeds `MEMORY_THRESHOLD_KB`, we will trigger summarization
+- After summarizing, keep only the last `MEMORY_KEEP_LAST_N` messages + summary
 
 **Why?** LLMs have context limits (token limits). We can't send infinite conversation history.
+
+```python
+MAX_TOOL_ROUNDS = 5  # Maximum number of tool call rounds per user message
+```
+**What this does:** Prevents infinite loops by limiting how many times the agent can call tools for a single user message. This allows **chaining tool calls** (e.g., first list files, then read a specific file) while preventing runaway execution.
+
+```python
+MISTRAL_RATE_LIMIT_RPS = 1.0  # Requests per second
+MISTRAL_MIN_DELAY = 1.0 / MISTRAL_RATE_LIMIT_RPS  # Minimum delay between calls
+```
+**What these do:** Configure rate limiting for Mistral API calls. Free tier allows 1 request per second, so we enforce a minimum 1-second delay between API calls to avoid hitting rate limits.
 
 ---
 
@@ -199,10 +226,20 @@ summarization_prompt: |
 
 ### 3. tools.py - Tool Definitions
 
-#### Tool Implementation
+The agent has access to **6 tools** in this version:
+
+1. **write_to_file** - Write content to a file
+2. **read_file** - Read content from a file
+3. **get_date** - Get today's date in readable format
+4. **get_batch_newsletter** - Scrape latest AI news from deeplearning.ai's The Batch
+5. **list_files** - List files in the current directory
+6. **curl_read** - Fetch and return content from a URL
+
+#### Tool Implementation Example
 
 ```python
 def write_to_file(filename: str, content: str) -> str:
+    """Write content to a file."""
     try:
         filepath = Path(filename)
         filepath.write_text(content)
@@ -215,7 +252,34 @@ def write_to_file(filename: str, content: str) -> str:
 - Takes parameters (filename, content)
 - Returns a string describing the result
 - Handles errors gracefully (no crashes!)
-- **The agent will see this return value** This is important. The reason function calls work well is that the agent can see the response whether success or not. So when writing tools, we must be aware that it is not exactly like any other function. All technicality is like any other function, but we need to assume it is for LLMs to read, and this may require some nuances in error messages or success messages. 
+- **The agent will see this return value** - This is important. The reason function calls work well is that the agent can see the response whether success or not. So when writing tools, we must be aware that it is not exactly like any other function. All technicality is like any other function, but we need to assume it is for LLMs to read, and this may require some nuances in error messages or success messages.
+
+#### Web Scraping Tool Example
+
+```python
+def get_batch_newsletter() -> str:
+    """Scrape the latest AI news headlines from The Batch newsletter."""
+    url = "https://www.deeplearning.ai/the-batch/"
+
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 ...'}
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+        articles = soup.find_all(['h2', 'h3', 'h4'], ...)
+
+        # Extract headlines and links...
+        return "Latest AI News from The Batch:\n\n" + "\n\n".join(headlines)
+    except Exception as e:
+        return f"Error fetching newsletter: {str(e)}"
+```
+
+**What this demonstrates:**
+- Real-world web scraping with requests and BeautifulSoup
+- Proper error handling for network requests
+- Parsing HTML to extract structured information
+- Returning formatted, LLM-readable results 
 
 #### Tool Schema
 
@@ -259,13 +323,22 @@ TOOL_SCHEMAS = [
 ```python
 TOOL_FUNCTIONS: Dict[str, Callable] = {
     "write_to_file": write_to_file,
+    "read_file": read_file,
     "get_date": get_date,
+    "get_batch_newsletter": get_batch_newsletter,
+    "list_files": list_files,
+    "curl_read": curl_read,
 }
 ```
 
 **What is this?** A dictionary mapping tool names (strings) to actual Python functions.
 
 **Why?** When the LLM says "call write_to_file", we look it up here and execute it.
+
+**Critical:** When adding a new tool, you must update THREE places:
+1. The function implementation (e.g., `def my_tool(...)`)
+2. The `TOOL_FUNCTIONS` registry (add `"my_tool": my_tool`)
+3. The `TOOL_SCHEMAS` array (add the JSON schema)
 
 #### Tool Executor
 
@@ -353,7 +426,7 @@ This is the most important file. Let's break it down step by step.
 
 ```python
 class Agent:
-    def __init__(self):
+    def __init__(self, console: Console = None):
         if not MISTRAL_API_KEY:
             raise ValueError("MISTRAL_API_KEY environment variable not set")
 
@@ -361,6 +434,8 @@ class Agent:
         self.model = MISTRAL_MODEL
         self.prompts = load_prompts()
         self.system_prompt = self.prompts["system_prompt"]
+        self.console = console or Console()
+        self.last_api_call_time = 0  # Track last API call for rate limiting
 ```
 
 **What happens here:**
@@ -368,6 +443,31 @@ class Agent:
 2. Create Mistral client
 3. Load prompts from YAML
 4. Store system prompt for later use
+5. Accept optional Rich Console for formatted output (dependency injection)
+6. Initialize rate limiting timestamp tracker
+
+#### Rate Limiting Method
+
+```python
+def _rate_limit(self):
+    """Enforce rate limiting by sleeping if necessary."""
+    current_time = time.time()
+    time_since_last_call = current_time - self.last_api_call_time
+
+    if time_since_last_call < MISTRAL_MIN_DELAY:
+        sleep_time = MISTRAL_MIN_DELAY - time_since_last_call
+        time.sleep(sleep_time)
+
+    self.last_api_call_time = time.time()
+```
+
+**How this works:**
+1. Track the time of the last API call
+2. Before each new call, check if enough time has passed
+3. If not, sleep for the remaining time
+4. Update the timestamp after the call
+
+**Why this matters:** Mistral's free tier allows 1 request per second. Without rate limiting, rapid tool calls would fail with 429 (Too Many Requests) errors. This method ensures we never exceed the limit, providing a smooth user experience.
 
 #### The Main Processing Loop
 
@@ -407,44 +507,71 @@ response = self.client.chat.complete(
 
 **What does `tools=TOOL_SCHEMAS` do?** Tells Mistral "here are the tools you can use".
 
-**Step 4: Handle Tool Calls**
+**Step 4: Multi-Round Tool Calling Loop**
 
-This is where the magic happens!
+This is where the Phase 3 magic happens! The agent can now make **multiple rounds** of tool calls:
 
 ```python
-if assistant_message.tool_calls:
-    # Add assistant message with tool calls
-    messages.append({
-        "role": "assistant",
-        "content": assistant_message.content or "",
-        "tool_calls": [...]
-    })
+tool_round = 0
+while tool_round < MAX_TOOL_ROUNDS:
+    # Apply rate limiting before each API call
+    self._rate_limit()
+
+    # Call Mistral API with spinner
+    with Live(Spinner("dots", text=spinner_text), console=self.console, transient=True):
+        response = self.client.chat.complete(
+            model=self.model,
+            messages=api_messages,
+            tools=TOOL_SCHEMAS,
+        )
+
+    assistant_message = response.choices[0].message
+
+    if assistant_message.tool_calls:
+        tool_round += 1
+
+        # Add assistant message with tool calls
+        messages.append({
+            "role": "assistant",
+            "content": assistant_message.content or "",
+            "tool_calls": [...]
+        })
+
+        # Execute tools and add results...
+        for tool_call in assistant_message.tool_calls:
+            result = execute_tool(tool_name, tool_args)
+            messages.append({
+                "role": "tool",
+                "name": tool_name,
+                "tool_call_id": tool_call.id,
+                "content": result
+            })
+
+        # Continue loop - agent can call more tools based on results!
+        continue
+
+    else:
+        # No tool calls - agent is done, return final response
+        return messages, content
 ```
 
-**The tool call flow:**
+**The multi-round tool call flow:**
 
-1. **LLM decides to use a tool** - Instead of text, it returns a structured tool call
-2. **We execute the tool** - Run the actual Python function
-3. **We add tool result to messages** - So the LLM can see what happened
-4. **We call the API again** - LLM now generates a response based on tool results
+1. **User**: "List the files, then read haiku.txt"
+2. **Round 1 - API Call**: Agent decides to call `list_files`
+3. **Execute**: We run `list_files()` → returns file list
+4. **Round 2 - API Call**: Agent sees the list, decides to call `read_file("haiku.txt")`
+5. **Execute**: We run `read_file()` → returns file content
+6. **Round 3 - API Call**: Agent sees the content, generates final text response
+7. **Done**: No more tool calls, return to user
 
-**Example conversation:**
+**Why this is powerful:**
+- Agent can **chain operations** based on results
+- Example: First check what files exist, then read specific ones
+- Example: Get AI news, then write it to a file
+- Prevents infinite loops with `MAX_TOOL_ROUNDS` limit
 
-```
-User: "What's today's date and write it to date.txt"
-
-→ API Call 1:
-  Assistant decides: tool_calls=[
-    {name: "get_date", args: {}},
-    {name: "write_to_file", args: {filename: "date.txt", content: "<date>"}}
-  ]
-
-→ We execute tools:
-  Tool results: ["Friday, October 03, 2025", "Successfully wrote to date.txt"]
-
-→ API Call 2 (with tool results):
-  Assistant: "I got today's date (Friday, October 03, 2025) and wrote it to date.txt."
-```
+**Rate limiting integration:** Each API call (including tool result processing) respects the 1-second delay, preventing rate limit errors even with multiple rounds.
 
 **Step 5: Return Results**
 
@@ -756,28 +883,290 @@ MEMORY_KEEP_LAST_N = 20    # Keep more recent messages
 # config.py
 MISTRAL_MODEL = "mistral-small-latest"  # Faster, cheaper
 ```
+
 ---
 
-## Next Steps
+## Phase 3: Production Enhancements - Rate Limiting & Multi-Round Tool Calling
 
-### To Learn More:
+**What's new in Phase 3:**
 
-1. **Experiment with Prompts** - How do different prompts change behavior?
-2. **Add Complex Tools** - Try API calls, database access, etc.
-3. **Add Streaming** - Show responses as they're generated
-4. **Better interface** - Can we make the whole CLI look better and nicer like other CLI tools? 
+Building on Phase 2's Rich TUI, Phase 3 adds critical production features:
+
+1. **Rate Limiting** - Gracefully handles API rate limits (1 RPS for free tier)
+2. **Multi-Round Tool Calling** - Agent can chain tool operations intelligently
+3. **Enhanced Error Handling** - Message rollback on failures, detailed error reporting
+4. **More Tools** - Web scraping, URL fetching, file operations, directory listing
+5. **Custom Branding** - Aivancity-themed dual-color ASCII art
+
+**Why these matter:**
+- **Rate limiting** prevents 429 errors and ensures smooth operation on free tier
+- **Multi-round calling** enables complex workflows (e.g., "list files, read one, summarize it")
+- **Error handling** maintains conversation state even when things go wrong
+- **More tools** demonstrate real-world agent capabilities (web scraping, HTTP requests)
+
+### 7. Rich Integration - Enhanced main.py
+
+#### Setting Up Rich Console
+
+```python
+from rich.console import Console
+from rich.panel import Panel
+from rich.markdown import Markdown
+from rich.prompt import Prompt
+from rich.theme import Theme
+```
+
+**What are these?**
+- `Console` - Rich's replacement for `print()`, with color and formatting support
+- `Panel` - Creates bordered boxes around content
+- `Markdown` - Renders markdown text with formatting
+- `Prompt` - Rich's replacement for `input()`, with styling
+- `Theme` - Defines consistent colors throughout the app
+
+#### Creating the Console
+
+```python
+console = Console(theme=Theme({
+    "info": "cyan",
+    "success": "green",
+    "warning": "yellow",
+    "error": "red bold",
+    "dim": "dim"
+}))
+```
+
+**What this does:** Creates a console object with predefined color styles.
+
+**Why?** Instead of hardcoding colors everywhere, we define them once. `console.print("[success]Done![/success]")` will always be green.
+
+#### Welcome Banner
+
+```python
+console.print(Panel.fit(
+    "[bold cyan]Simple Agentic CLI Chatbot[/bold cyan]\n[dim]Powered by Mistral AI[/dim]",
+    border_style="cyan"
+))
+```
+
+**Before (Phase 1):**
+```python
+print("=" * 60)
+print("  Simple Agentic CLI Chatbot")
+print("=" * 60)
+```
+
+**What changed:** Panel.fit() creates a box that fits the content, with styled borders. `[bold cyan]` is Rich's markup syntax.
+
+**The markup syntax:** `[style]text[/style]` where style can be colors, bold, italic, dim, etc.
+
+#### User Input with Rich Prompt
+
+```python
+user_input = Prompt.ask("[bold cyan]You[/bold cyan]").strip()
+```
+
+**Before (Phase 1):**
+```python
+user_input = input("You: ").strip()
+```
+
+**What changed:** `Prompt.ask()` renders the prompt with Rich formatting. The prompt label is colored cyan and bold.
+
+**Why?** Consistent visual hierarchy - user input always looks the same.
+
+#### Displaying User Messages
+
+```python
+console.print(Panel(user_input, title="[bold cyan]👤 You[/bold cyan]", border_style="cyan"))
+```
+
+**What this does:** Wraps user input in a cyan-bordered panel with a title and emoji.
+
+**Visual result:**
+```
+╭─ 👤 You ────────────────────╮
+│ What's today's date?        │
+╰─────────────────────────────╯
+```
+
+#### Displaying Assistant Responses
+
+```python
+md = Markdown(response)
+console.print(Panel(md, title="[bold green]🤖 Assistant[/bold green]", border_style="green"))
+```
+
+**Before (Phase 1):**
+```python
+print(f"\nAssistant: {response}\n")
+```
+
+**What changed:**
+1. Response is parsed as Markdown (supports **bold**, `code`, lists, etc.)
+2. Wrapped in a green panel
+3. Emoji in title for visual distinction
+
+**Why Markdown?** LLMs often return formatted text. Rich renders it properly:
+- Code blocks get syntax highlighting
+- Lists are indented
+- Headers are bold
+
+#### Memory Statistics Command
+
+```python
+def print_stats(messages):
+    size_kb = get_memory_size_kb(messages)
+    percentage = (size_kb / MEMORY_THRESHOLD_KB) * 100
+
+    stats_text = f"""
+**Message Count:** {len(messages)} messages
+**Memory Size:** {size_kb:.2f} KB / {MEMORY_THRESHOLD_KB} KB ({percentage:.1f}%)
+**Status:** {'[warning]⚠️  Approaching threshold[/warning]' if size_kb > MEMORY_THRESHOLD_KB * 0.8 else '[success]✓ Healthy[/success]'}
+    """
+    console.print(Panel(stats_text.strip(), title="[bold cyan]Memory Statistics[/bold cyan]", border_style="cyan"))
+```
+
+**What's new:** A `/stats` command that shows memory usage.
+
+**The conditional formatting:** If memory is >80% of threshold, show warning (yellow). Otherwise show success (green).
+
+**Why?** Gives users visibility into the system state. This is called "observability" - making internal state visible.
+
+### 8. Rich Integration - Enhanced agent.py
+
+#### Accepting Console in Constructor
+
+```python
+def __init__(self, console: Console = None):
+    ...
+    self.console = console or Console()
+```
+
+**What this does:** Agent accepts an optional Console object. If not provided, creates its own.
+
+**Why?** This is called **dependency injection**. The agent doesn't create its own console - it receives one. This means:
+1. Tests can pass a mock console
+2. Main.py controls the console configuration
+3. Agent doesn't need to know about themes
+
+#### Live Spinner During API Calls
+
+```python
+from rich.live import Live
+from rich.spinner import Spinner
+
+with Live(Spinner("dots", text="[dim]Thinking...[/dim]"), console=self.console, transient=True):
+    response = self.client.chat.complete(...)
+```
+
+**What this does:** Shows an animated spinner while waiting for the API.
+
+**The `with` statement:** Python's context manager. The spinner appears when entering the block, disappears when exiting.
+
+**The `transient=True` flag:** Makes the spinner disappear after completion (doesn't clutter the screen).
+
+**Why?** User feedback! Without this, the app seems frozen during API calls. The spinner shows "I'm working on it."
+
+#### Displaying Tool Execution
+
+```python
+from rich.syntax import Syntax
+
+args_json = json.dumps(tool_args, indent=2)
+syntax = Syntax(args_json, "json", theme="monokai", line_numbers=False)
+
+tool_panel = Panel(
+    syntax,
+    title=f"[bold yellow]⚙️  Executing: {tool_name}[/bold yellow]",
+    border_style="yellow"
+)
+console.print(tool_panel)
+```
+
+**Before (Phase 1):**
+```python
+print(f"[Executing tool: {tool_name} with args: {tool_args}]")
+```
+
+**What changed:**
+1. Arguments formatted as pretty-printed JSON
+2. JSON gets syntax highlighting (keys in one color, values in another)
+3. Wrapped in yellow panel (distinct from user/assistant messages)
+
+**The Syntax object:** Takes code string, language ("json"), and theme. Automatically highlights.
+
+**Why yellow?** Visual hierarchy:
+- Cyan = User
+- Green = Assistant
+- Yellow = Tool/System
+
+#### Displaying Tool Results
+
+```python
+result_panel = Panel(
+    f"[dim]{result}[/dim]",
+    title=f"[bold yellow]✓ Result[/bold yellow]",
+    border_style="yellow"
+)
+console.print(result_panel)
+```
+
+**What this does:** Shows tool result in a dimmed (gray) panel.
+
+**Why dimmed?** Tool results are less important than the assistant's final response. Dimming de-emphasizes while still showing the information.
+
+#### Memory Compression Feedback
+
+```python
+compressed = compress_memory(messages, summary)
+self.console.print(f"[success]✓ Memory compressed: {len(messages)} → {len(compressed)} messages[/success]")
+```
+
+**What this does:** After summarization, shows before/after message count.
+
+**Why?** Transparency. User sees exactly what happened (e.g., "150 messages compressed to 11 messages").
+
+### Visual Comparison: Phase 1 vs Phase 2
+
+**Phase 1 (master branch):**
+```
+You: What's today's date?
+[Executing tool: get_date with args: {}]
+
+### Future Enhancements to Explore:
+
+1. **Experiment with Prompts** - How do different system prompts change agent behavior?
+2. **Add More Complex Tools** - Try database access, file system navigation, API integrations
+3. **Add Streaming** - Show responses token-by-token as they're generated
+4. **Improve Rate Limiting** - Implement token bucket algorithm for burst support
+5. **Add Tool Validation** - Verify tool arguments before execution
+6. **Implement Logging** - Track tool usage, API calls, and errors for debugging
+7. **Add Multi-Agent Support** - Create specialized agents for different tasks 
 ---
 
 ## Conclusion
 
-You now have a complete understanding of how agentic AI systems work! This simple implementation demonstrates all the core concepts:
+You now have a complete understanding of how **production-ready agentic AI systems** work! This implementation demonstrates:
 
-✅ **Tool/Function Calling** - LLMs that take actions
-✅ **Memory Management** - Handling conversation history
-✅ **Context Compression** - Staying within token limits
-✅ **Error Handling** - Robust production patterns
-✅ **Testing** - Ensuring reliability
+✅ **Tool/Function Calling** - LLMs that take actions in the real world
+✅ **Memory Management** - Handling conversation history with summarization
+✅ **Context Compression** - Staying within token limits intelligently
+✅ **Rate Limiting** - Graceful API quota management
+✅ **Multi-Round Tool Calling** - Chaining operations for complex tasks
+✅ **Error Handling** - Robust patterns with rollback capabilities
+✅ **Rich TUI** - Beautiful, professional terminal interfaces
+✅ **Web Scraping** - Real-world data collection tools
+✅ **Testing** - Ensuring reliability with comprehensive test coverage
 
-**Remember:** The best way to learn is by building. Modify this code, break things, fix them, and add your own features. You can begin simply by adding your own tools, more complicated tools that uses API calls or even other LLM calls. 
+**Phase Evolution:**
+- **Phase 1** (master): Basic agent with simple tools and plain text UI
+- **Phase 2** (phase2-rich-tui): Added Rich library for beautiful terminal UI
+- **Phase 3** (current): Production enhancements - rate limiting, multi-round tool calls, advanced tools
+
+**Remember:** The best way to learn is by building. Fork and modify this code, break things, fix them, and add your own features. Start by:
+1. Adding your own tools (maybe a calculator, weather API, or database query)
+2. Experimenting with different system prompts to change agent behavior
+3. Adjusting rate limits and memory thresholds to see the impact
+4. Building more complex tool chains (e.g., research → summarize → email) 
 
 ---
