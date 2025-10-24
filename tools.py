@@ -129,7 +129,7 @@ def set_french_learning_goal(hours_per_week: float) -> str:
         with open(stats_file, 'w') as f:
             json.dump(stats, f, indent=2)
         
-        return f"✓ French learning goal set to {hours_per_week} hours per week"
+        return f"✓ French learning goal set to {hours_per_week:.1f} hours per week"
     except Exception as e:
         return f"Error setting goal: {str(e)}"
 
@@ -154,7 +154,7 @@ def get_french_learning_goal() -> str:
         
         updated = stats.get("goal_updated_at", "Unknown")
         
-        return f"Current goal: {hours} hours per week (Updated: {updated})"
+        return f"Current goal: {hours:.1f} hours per week (Updated: {updated})"
     except Exception as e:
         return f"Error reading goal: {str(e)}"
 
@@ -197,7 +197,7 @@ def log_french_learning_time(hours: float, date: str = None) -> str:
         with open(stats_file, 'w') as f:
             json.dump(stats, f, indent=2)
         
-        return f"✓ Logged {hours} hours of French learning on {session_date}"
+        return f"✓ Logged {hours:.1f} hours of French learning on {session_date}"
     except Exception as e:
         return f"Error logging learning time: {str(e)}"
 
@@ -240,14 +240,103 @@ def get_french_learning_time() -> str:
         
         # Build detailed response
         response = f"This week's French learning time (week starting {week_start_str}):\n"
-        response += f"Total: {total_hours} hours\n\n"
+        response += f"Total: {total_hours:.1f} hours\n\n"
         response += "Sessions:\n"
         for session in current_week_sessions:
-            response += f"  • {session['date']}: {session['hours']} hours\n"
+            response += f"  • {session['date']}: {session['hours']:.1f} hours\n"
         
         return response
     except Exception as e:
         return f"Error retrieving learning time: {str(e)}"
+
+def compare_french_learning_progress() -> str:
+    """Compare weekly goal with actual learning time to track progress.
+
+    Returns:
+        Progress report with goal, actual time, percentage, and status
+    """
+    try:
+        stats_file = Path("stats.json")
+        
+        if not stats_file.exists():
+            return "No data available. Please set a weekly goal and start logging your learning time!"
+        
+        with open(stats_file, 'r') as f:
+            stats = json.load(f)
+        
+        # Check if goal is set
+        goal_hours = stats.get("weekly_goal_hours")
+        if goal_hours is None:
+            return "No weekly goal set yet. Please set a goal first to track your progress!"
+        
+        # Get current week info
+        today = datetime.now()
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=6)
+        week_start_str = week_start.strftime("%Y-%m-%d")
+        
+        # Calculate days remaining
+        days_remaining = (week_end - today).days + 1  # +1 to include today
+        
+        # Calculate actual hours for current week
+        sessions = stats.get("learning_sessions", [])
+        actual_hours = 0
+        current_week_sessions = []
+        
+        for session in sessions:
+            if session["date"] >= week_start_str:
+                actual_hours += session["hours"]
+                current_week_sessions.append(session)
+        
+        # Calculate percentage
+        if goal_hours > 0:
+            percentage = (actual_hours / goal_hours) * 100
+        else:
+            percentage = 0
+        
+        # Determine status
+        if percentage >= 100:
+            status = "🎉 Goal exceeded!"
+            emoji = "✅"
+        elif percentage >= 80:
+            status = "👍 On track"
+            emoji = "🟢"
+        elif percentage >= 50:
+            status = "⚠️  Behind schedule"
+            emoji = "🟡"
+        else:
+            status = "❗ Significantly behind"
+            emoji = "🔴"
+        
+        # Build progress report
+        response = f"📊 French Learning Progress Report (Week of {week_start_str})\n\n"
+        response += f"{emoji} Status: {status}\n\n"
+        response += f"📌 Weekly Goal: {goal_hours:.1f} hours\n"
+        response += f"✏️  Actual Time: {actual_hours:.1f} hours\n"
+        response += f"📈 Progress: {percentage:.1f}% of goal\n"
+        response += f"📅 Days Remaining: {days_remaining} day(s)\n\n"
+        
+        if current_week_sessions:
+            response += "Sessions this week:\n"
+            for session in current_week_sessions:
+                response += f"  • {session['date']}: {session['hours']:.1f} hours\n"
+        else:
+            response += "No sessions logged this week yet.\n"
+        
+        # Add motivational message
+        if percentage >= 100:
+            response += "\n🌟 Amazing work! You've exceeded your goal!"
+        elif percentage >= 80:
+            response += f"\n💪 Great progress! Keep it up to reach your goal!"
+        elif days_remaining > 0:
+            hours_needed = goal_hours - actual_hours
+            response += f"\n💡 Tip: You need {hours_needed:.1f} more hours to reach your goal."
+        else:
+            response += "\n📝 The week is ending. Set a new goal for next week!"
+        
+        return response
+    except Exception as e:
+        return f"Error comparing progress: {str(e)}"
 
 # Tool registry mapping tool names to functions
 TOOL_FUNCTIONS: Dict[str, Callable] = {
@@ -257,7 +346,8 @@ TOOL_FUNCTIONS: Dict[str, Callable] = {
     "set_french_learning_goal": set_french_learning_goal,
     "get_french_learning_goal": get_french_learning_goal,
     "log_french_learning_time": log_french_learning_time,
-    "get_french_learning_time": get_french_learning_time
+    "get_french_learning_time": get_french_learning_time,
+    "compare_french_learning_progress": compare_french_learning_progress
 }
 
 
@@ -363,6 +453,18 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "get_french_learning_time",
             "description": "Get the actual French learning time logged for the current week, including total hours and individual sessions",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "compare_french_learning_progress",
+            "description": "Compare weekly goal with actual learning time to see progress. Shows goal vs actual, percentage achieved, status, and days remaining.",
             "parameters": {
                 "type": "object",
                 "properties": {},

@@ -121,7 +121,7 @@ def test_get_french_learning_time_current_week(clean_stats_file):
     assert date1 in result
     assert date2 in result
     assert "1.5 hours" in result
-    assert "2 hours" in result
+    assert "2.0 hours" in result
 
 
 def test_get_french_learning_time_filters_old_sessions(clean_stats_file):
@@ -143,7 +143,7 @@ def test_get_french_learning_time_filters_old_sessions(clean_stats_file):
     # Get learning time - should only show current week
     result = get_french_learning_time()
     
-    assert "Total: 2 hours" in result
+    assert "Total: 2.0 hours" in result
     assert current_date in result
     assert old_date not in result
 
