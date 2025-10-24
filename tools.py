@@ -1,5 +1,5 @@
 """Tool definitions and execution for the agentic chatbot."""
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict
 import requests
@@ -158,13 +158,106 @@ def get_french_learning_goal() -> str:
     except Exception as e:
         return f"Error reading goal: {str(e)}"
 
+def log_french_learning_time(hours: float, date: str = None) -> str:
+    """Log actual French learning time for a study session.
+
+    Args:
+        hours: Number of hours studied in this session
+        date: Date of the session (YYYY-MM-DD format). If not provided, uses today's date.
+
+    Returns:
+        Success message with the logged time
+    """
+    try:
+        stats_file = Path("stats.json")
+        
+        # Load existing stats or create new
+        if stats_file.exists():
+            with open(stats_file, 'r') as f:
+                stats = json.load(f)
+        else:
+            stats = {}
+        
+        # Initialize learning_sessions list if it doesn't exist
+        if "learning_sessions" not in stats:
+            stats["learning_sessions"] = []
+        
+        # Use provided date or today's date
+        session_date = date if date else datetime.now().strftime("%Y-%m-%d")
+        
+        # Add new session
+        session = {
+            "date": session_date,
+            "hours": hours,
+            "logged_at": datetime.now().isoformat()
+        }
+        stats["learning_sessions"].append(session)
+        
+        # Save stats
+        with open(stats_file, 'w') as f:
+            json.dump(stats, f, indent=2)
+        
+        return f"✓ Logged {hours} hours of French learning on {session_date}"
+    except Exception as e:
+        return f"Error logging learning time: {str(e)}"
+
+def get_french_learning_time() -> str:
+    """Get the actual French learning time for the current week.
+
+    Returns:
+        Summary of learning time for the current week
+    """
+    try:
+        stats_file = Path("stats.json")
+        
+        if not stats_file.exists():
+            return "No learning time logged yet. Start logging your study sessions!"
+        
+        with open(stats_file, 'r') as f:
+            stats = json.load(f)
+        
+        sessions = stats.get("learning_sessions", [])
+        
+        if not sessions:
+            return "No learning time logged yet. Start logging your study sessions!"
+        
+        # Get current week's Monday (ISO week)
+        today = datetime.now()
+        week_start = today - timedelta(days=today.weekday())
+        week_start_str = week_start.strftime("%Y-%m-%d")
+        
+        # Filter sessions for current week
+        current_week_sessions = []
+        total_hours = 0
+        
+        for session in sessions:
+            if session["date"] >= week_start_str:
+                current_week_sessions.append(session)
+                total_hours += session["hours"]
+        
+        if not current_week_sessions:
+            return f"No learning time logged this week yet (week starting {week_start_str})"
+        
+        # Build detailed response
+        response = f"This week's French learning time (week starting {week_start_str}):\n"
+        response += f"Total: {total_hours} hours\n\n"
+        response += "Sessions:\n"
+        for session in current_week_sessions:
+            response += f"  • {session['date']}: {session['hours']} hours\n"
+        
+        return response
+    except Exception as e:
+        return f"Error retrieving learning time: {str(e)}"
+
 # Tool registry mapping tool names to functions
 TOOL_FUNCTIONS: Dict[str, Callable] = {
     "write_to_file": write_to_file,
     "get_date": get_date,
     "get_batch_newsletter": get_batch_newsletter,
     "set_french_learning_goal": set_french_learning_goal,
-    "get_french_learning_goal": get_french_learning_goal
+    "get_french_learning_goal": get_french_learning_goal,
+    "log_french_learning_time": log_french_learning_time,
+    "get_french_learning_time": get_french_learning_time
 }
 
 
@@ -237,6 +330,39 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "get_french_learning_goal",
             "description": "Get the current weekly French learning goal and see when it was last updated",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "log_french_learning_time",
+            "description": "Log actual French learning time for a study session. Can optionally specify the date.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "hours": {
+                        "type": "number",
+                        "description": "Number of hours studied in this session"
+                    },
+                    "date": {
+                        "type": "string",
+                        "description": "Date of the session in YYYY-MM-DD format (optional, defaults to today)"
+                    }
+                },
+                "required": ["hours"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_french_learning_time",
+            "description": "Get the actual French learning time logged for the current week, including total hours and individual sessions",
             "parameters": {
                 "type": "object",
                 "properties": {},
