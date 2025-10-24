@@ -121,6 +121,19 @@ def test_execute_tool_unknown():
     assert "Unknown tool" in result
 
 
+def test_execute_tool_empty_string_key():
+    """Test execute_tool handles empty string keys from Mistral API."""
+    from tools import execute_tool
+
+    # Mistral API sometimes sends {"": ""} for tools with no parameters
+    result = execute_tool("get_date", {"": ""})
+    
+    # Should work without error
+    assert isinstance(result, str)
+    assert len(result) > 0
+    assert "Error" not in result
+
+
 def test_tool_registry():
     """Test that tool registry contains all tools."""
     from tools import TOOL_FUNCTIONS

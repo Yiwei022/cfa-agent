@@ -128,9 +128,12 @@ class Agent:
             final_message = final_response.choices[0].message
             final_content = final_message.content or ""
 
-            # Only append assistant message if there's content or tool calls
-            if final_content or final_message.tool_calls:
-                messages.append({"role": "assistant", "content": final_content})
+            # Handle edge case: empty response after tool execution
+            if not final_content and not final_message.tool_calls:
+                # Mistral sometimes returns empty response after tool errors
+                final_content = "I apologize, I encountered an issue processing that request. Please try again."
+            
+            messages.append({"role": "assistant", "content": final_content})
 
             return messages, final_content
 

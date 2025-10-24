@@ -489,8 +489,11 @@ def execute_tool(tool_name: str, tool_args: Dict[str, Any]) -> str:
         return f"Error: Unknown tool '{tool_name}'"
 
     try:
+        # Filter out empty string keys (Mistral API sometimes sends {"": ""})
+        cleaned_args = {k: v for k, v in tool_args.items() if k}
+        
         tool_func = TOOL_FUNCTIONS[tool_name]
-        result = tool_func(**tool_args)
+        result = tool_func(**cleaned_args)
         return str(result)
     except Exception as e:
         return f"Error executing {tool_name}: {str(e)}"
