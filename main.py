@@ -148,6 +148,19 @@ def main():
     if messages:
         console.print(f"[dim]✓ Loaded {len(messages)} messages from previous session[/dim]\n")
 
+    # Check for new week on startup
+    from tools import check_new_week_status
+    week_status = check_new_week_status()
+    
+    # Only show if it's a new week or if there's a goal set
+    if "NEW WEEK" in week_status or "Current Week" in week_status:
+        console.print(Panel(
+            Markdown(week_status),
+            title="[bold user]📅 Week Status[/bold user]",
+            border_style="user"
+        ))
+        console.print()
+
     # Main chat loop
     while True:
         try:
