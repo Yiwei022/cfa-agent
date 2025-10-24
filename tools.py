@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict
 import requests
 from bs4 import BeautifulSoup
+import json
 
 
 # Tool implementations
@@ -101,11 +102,69 @@ def get_batch_newsletter() -> str:
     except Exception as e:
         return f"Error parsing newsletter: {str(e)}"
 
+def set_french_learning_goal(hours_per_week: float) -> str:
+    """Set or update the weekly French learning goal in hours.
+
+    Args:
+        hours_per_week: Number of hours to study French per week
+
+    Returns:
+        Success message with the updated goal
+    """
+    try:
+        stats_file = Path("stats.json")
+        
+        # Load existing stats or create new
+        if stats_file.exists():
+            with open(stats_file, 'r') as f:
+                stats = json.load(f)
+        else:
+            stats = {}
+        
+        # Update goal
+        stats["weekly_goal_hours"] = hours_per_week
+        stats["goal_updated_at"] = datetime.now().isoformat()
+        
+        # Save stats
+        with open(stats_file, 'w') as f:
+            json.dump(stats, f, indent=2)
+        
+        return f"✓ French learning goal set to {hours_per_week} hours per week"
+    except Exception as e:
+        return f"Error setting goal: {str(e)}"
+
+def get_french_learning_goal() -> str:
+    """Get the current weekly French learning goal.
+
+    Returns:
+        Current goal information or a message if no goal is set
+    """
+    try:
+        stats_file = Path("stats.json")
+        
+        if not stats_file.exists():
+            return "No French learning goal set yet. Set a goal to track your progress!"
+        
+        with open(stats_file, 'r') as f:
+            stats = json.load(f)
+        
+        hours = stats.get("weekly_goal_hours")
+        if hours is None:
+            return "No French learning goal set yet. Set a goal to track your progress!"
+        
+        updated = stats.get("goal_updated_at", "Unknown")
+        
+        return f"Current goal: {hours} hours per week (Updated: {updated})"
+    except Exception as e:
+        return f"Error reading goal: {str(e)}"
+
 # Tool registry mapping tool names to functions
 TOOL_FUNCTIONS: Dict[str, Callable] = {
     "write_to_file": write_to_file,
     "get_date": get_date,
-    "get_batch_newsletter": get_batch_newsletter
+    "get_batch_newsletter": get_batch_newsletter,
+    "set_french_learning_goal": set_french_learning_goal,
+    "get_french_learning_goal": get_french_learning_goal
 }
 
 
@@ -149,6 +208,35 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "get_batch_newsletter",
             "description": "Get the latest AI news headlines from deeplearning.ai's The Batch newsletter",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "set_french_learning_goal",
+            "description": "Set or update the weekly French learning goal in hours",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "hours_per_week": {
+                        "type": "number",
+                        "description": "Number of hours to study French per week"
+                    }
+                },
+                "required": ["hours_per_week"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_french_learning_goal",
+            "description": "Get the current weekly French learning goal and see when it was last updated",
             "parameters": {
                 "type": "object",
                 "properties": {},

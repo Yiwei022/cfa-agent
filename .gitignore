@@ -10,5 +10,6 @@ __pycache__/
 dev/
 # PDF
 *.pdf
-# memory files
+# memory and stats files
 memory.json
+stats.json
