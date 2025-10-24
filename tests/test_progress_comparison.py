@@ -1,23 +1,18 @@
 """Unit tests for French learning progress comparison tool."""
 import pytest
 import json
+import os
 from pathlib import Path
 from datetime import datetime, timedelta
 
 
 @pytest.fixture
-def clean_stats_file():
-    """Fixture to clean up stats.json before and after tests."""
-    stats_file = Path("stats.json")
-    # Clean up before test
-    if stats_file.exists():
-        stats_file.unlink()
-    
+def clean_stats_file(tmp_path, monkeypatch):
+    """Fixture to run tests in a temporary directory to avoid deleting real stats.json."""
+    # Change to temporary directory for the test
+    monkeypatch.chdir(tmp_path)
     yield
-    
-    # Clean up after test
-    if stats_file.exists():
-        stats_file.unlink()
+    # Tests run in tmp_path, so real stats.json is never touched
 
 
 def test_compare_progress_no_data(clean_stats_file):
