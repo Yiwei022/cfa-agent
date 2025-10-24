@@ -121,9 +121,15 @@ def set_french_learning_goal(hours_per_week: float) -> str:
         else:
             stats = {}
         
+        # Get current week start (Monday)
+        today = datetime.now()
+        week_start = today - timedelta(days=today.weekday())
+        week_start_str = week_start.strftime("%Y-%m-%d")
+        
         # Update goal
         stats["weekly_goal_hours"] = hours_per_week
         stats["goal_updated_at"] = datetime.now().isoformat()
+        stats["goal_week_start"] = week_start_str  # Track which week this goal is for
         
         # Save stats
         with open(stats_file, 'w') as f:
@@ -338,6 +344,56 @@ def compare_french_learning_progress() -> str:
     except Exception as e:
         return f"Error comparing progress: {str(e)}"
 
+def check_new_week_status() -> str:
+    """Check if it's a new week compared to when the goal was set.
+
+    Returns:
+        Information about current week vs goal week, and whether to set a new goal
+    """
+    try:
+        stats_file = Path("stats.json")
+        
+        if not stats_file.exists():
+            return "No data available. Set your first weekly French learning goal to get started!"
+        
+        with open(stats_file, 'r') as f:
+            stats = json.load(f)
+        
+        # Check if goal exists
+        if "weekly_goal_hours" not in stats or "goal_week_start" not in stats:
+            return "No weekly goal set yet. Set a goal to start tracking your progress!"
+        
+        # Get current week start
+        today = datetime.now()
+        current_week_start = today - timedelta(days=today.weekday())
+        current_week_start_str = current_week_start.strftime("%Y-%m-%d")
+        
+        # Get goal week start
+        goal_week_start_str = stats["goal_week_start"]
+        
+        # Compare weeks
+        if current_week_start_str == goal_week_start_str:
+            # Same week
+            goal_hours = stats["weekly_goal_hours"]
+            response = f"📅 Week Status: Current Week\n\n"
+            response += f"✓ You're still in the same week (starting {current_week_start_str})\n"
+            response += f"📌 Current goal: {goal_hours:.1f} hours per week\n\n"
+            response += "Keep working towards your goal for this week!"
+            return response
+        else:
+            # New week!
+            goal_hours = stats.get("weekly_goal_hours", 0)
+            response = f"📅 Week Status: NEW WEEK! 🎉\n\n"
+            response += f"🗓️  Last goal was for week of: {goal_week_start_str}\n"
+            response += f"🗓️  Current week starts: {current_week_start_str}\n\n"
+            response += f"Your previous goal was {goal_hours:.1f} hours per week.\n\n"
+            response += "💡 Suggestion: It's a new week! Set a new weekly goal to track your progress for this week.\n"
+            response += "   Use the set_french_learning_goal tool to set your new goal."
+            return response
+            
+    except Exception as e:
+        return f"Error checking week status: {str(e)}"
+
 # Tool registry mapping tool names to functions
 TOOL_FUNCTIONS: Dict[str, Callable] = {
     "write_to_file": write_to_file,
@@ -347,7 +403,8 @@ TOOL_FUNCTIONS: Dict[str, Callable] = {
     "get_french_learning_goal": get_french_learning_goal,
     "log_french_learning_time": log_french_learning_time,
     "get_french_learning_time": get_french_learning_time,
-    "compare_french_learning_progress": compare_french_learning_progress
+    "compare_french_learning_progress": compare_french_learning_progress,
+    "check_new_week_status": check_new_week_status
 }
 
 
@@ -465,6 +522,18 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "compare_french_learning_progress",
             "description": "Compare weekly goal with actual learning time to see progress. Shows goal vs actual, percentage achieved, status, and days remaining.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_new_week_status",
+            "description": "Check if it's a new week compared to when the goal was last set. Helps determine if a new weekly goal should be set.",
             "parameters": {
                 "type": "object",
                 "properties": {},

@@ -41,9 +41,29 @@
 - **Data**: Uses existing `stats.json` structure (no new fields needed)
 - **Bonus**: All tools now use consistent decimal formatting (e.g., "5.0 hours", "2.5 hours")
 
-### Task 4: Weekly Calendar Check
-- Add a tool to check if it's a new week
-- Prompt user to set new weekly goal when week changes
+### ✅ Task 4: Weekly Calendar Check (COMPLETED)
+- **Tool**: `check_new_week_status()`
+  - Checks if current week is different from the week when goal was last set
+  - Returns information about:
+    - Current week start date (Monday)
+    - Last goal set week start date
+    - Whether it's a new week
+    - Friendly messages with suggestions
+  - **Same week response**: Shows current goal and encourages user
+  - **New week response**: Notifies user it's a new week, shows previous goal, suggests setting new goal
+- **Data Updates**:
+  - `set_french_learning_goal()` now stores `goal_week_start` in `stats.json`
+  - This tracks which week (Monday start date) the goal belongs to
+  - Enables week-to-week comparison
+- **Tests**: 11 unit tests in `tests/test_week_check.py` covering:
+  - Same week detection
+  - New week detection  
+  - No goal set / No data scenarios
+  - Week rollover edge cases
+  - Tool schema and registry validation
+  - Empty string key handling (Mistral API compatibility)
+  - Week-to-week transitions (Monday to Monday)
+- **Agent Behavior**: Agent can now proactively check if it's a new week and suggest setting a new goal when appropriate
 
 
 
