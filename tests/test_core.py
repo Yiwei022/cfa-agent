@@ -28,9 +28,9 @@ def test_load_prompts():
 
 def test_config_constants():
     """Test configuration constants."""
-    from config import MISTRAL_MODEL, MEMORY_THRESHOLD_KB, MEMORY_KEEP_LAST_N
+    from config import OPENAI_MODEL, MEMORY_THRESHOLD_KB, MEMORY_KEEP_LAST_N
 
-    assert MISTRAL_MODEL == "mistral-small-latest"
+    assert OPENAI_MODEL in ["gpt-5-nano"]  # Valid OpenAI models
     assert MEMORY_THRESHOLD_KB == 50
     assert MEMORY_KEEP_LAST_N == 10
 

@@ -1,5 +1,6 @@
 """Configuration management for the CLI chatbot."""
 import os
+from openai import OpenAI
 import yaml
 from pathlib import Path
 from dotenv import load_dotenv
@@ -12,9 +13,9 @@ PROMPTS_FILE = PROJECT_DIR / "prompts.yaml"
 # Load environment variables from .env file
 load_dotenv(PROJECT_DIR / ".env")
 
-# Mistral API configuration
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
-MISTRAL_MODEL = "mistral-small-latest"  # Supports function calling
+# OpenAI API configuration
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = "gpt-5-nano"  
 
 # Memory management
 MEMORY_THRESHOLD_KB = 50  # Threshold to trigger summarization
