@@ -4,9 +4,11 @@ import sys
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
-from rich.prompt import Prompt
 from rich.theme import Theme
 from rich.text import Text
+from prompt_toolkit import PromptSession
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.styles import Style as PTStyle
 from agent import Agent
 from memory import load_memory, save_memory, get_memory_size_kb
 from config import MEMORY_THRESHOLD_KB
@@ -141,11 +143,30 @@ def main():
         ))
         console.print()
 
+    # Initialize prompt_toolkit session with basic arrow key navigation and mouse support
+    # Supports: 
+    # - Arrow keys (left/right navigation, up/down history)
+    # - Mouse (click to position cursor, click and drag to select text)
+    # - Backspace/Delete (including deletion of selected text)
+    prompt_style = PTStyle.from_dict({
+        'prompt': '#6FD3D3 bold',  # Match the user color theme
+    })
+    
+    session = PromptSession(
+        history=InMemoryHistory(),
+        style=prompt_style,
+        enable_history_search=False,  # Keep it simple - no Ctrl+R reverse search
+        vi_mode=False,
+    )
+
     # Main chat loop
     while True:
         try:
-            # Get user input with Rich prompt
-            user_input = Prompt.ask("[bold user]You[/bold user]").strip()
+            # Get user input with prompt_toolkit (supports arrow keys, history, and mouse)
+            user_input = session.prompt(
+                [('class:prompt', 'You: ')],
+                mouse_support=True  # Enable mouse: click to position, drag to select text
+            ).strip()
 
             if not user_input:
                 continue
