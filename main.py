@@ -128,7 +128,7 @@ def main():
     console.print()
     print_ascii_banner()
     console.print()
-    console.print("[dim]Powered by Mistral AI with Function Calling[/dim]", justify="center")
+    console.print("[dim]Powered by OpenAI with Function Calling[/dim]", justify="center")
     console.print("[dim]Type /help for commands, /exit to quit[/dim]\n", justify="center")
 
     # Initialize agent
@@ -136,8 +136,8 @@ def main():
         agent = Agent(console)
     except ValueError as e:
         console.print(f"[error]Error:[/error] {e}")
-        console.print("\n[warning]Please set MISTRAL_API_KEY environment variable:[/warning]")
-        console.print("  [dim]export MISTRAL_API_KEY='your-api-key'[/dim]")
+        console.print("\n[warning]Please set OPENAI_API_KEY environment variable:[/warning]")
+        console.print("  [dim]export OPENAI_API_KEY='your-api-key'[/dim]")
         sys.exit(1)
     except Exception as e:
         console.print(f"[error]Error initializing agent:[/error] {e}")

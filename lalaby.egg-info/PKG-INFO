@@ -1,3 +1,31 @@
+Metadata-Version: 2.4
+Name: lalaby
+Version: 1.0.0
+Summary: An AI-powered French learning assistant with goal tracking and progress monitoring
+Author: Aivancity CFA Agent Team
+License: MIT
+Project-URL: Homepage, https://github.com/bcivitcioglu/cfa-agent
+Project-URL: Repository, https://github.com/bcivitcioglu/cfa-agent
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Education
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENCE
+Requires-Dist: openai>=2.0.0
+Requires-Dist: rich>=14.0.0
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: PyYAML>=6.0
+Requires-Dist: pypdf>=6.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0.0; extra == "dev"
+Dynamic: license-file
+
 ![Aivancity Agent Logo](imgs/logo.png)
 
 # Simple Agentic CLI Chatbot - Complete Educational Guide

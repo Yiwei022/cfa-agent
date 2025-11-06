@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lalaby"
+version = "1.0.0"
+description = "An AI-powered French learning assistant with goal tracking and progress monitoring"
+readme = "README.md"
+authors = [
+    {name = "Aivancity CFA Agent Team"}
+]
+license = {text = "MIT"}
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "openai>=2.0.0",
+    "rich>=14.0.0",
+    "python-dotenv>=1.0.0",
+    "PyYAML>=6.0",
+    "pypdf>=6.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.scripts]
+lalaby = "main:main"
+
+[project.urls]
+Homepage = "https://github.com/bcivitcioglu/cfa-agent"
+Repository = "https://github.com/bcivitcioglu/cfa-agent"
+
+[tool.setuptools]
+py-modules = ["main", "agent", "config", "memory", "tools"]
+
+[tool.setuptools.package-data]
+"*" = ["prompts.yaml"]
+

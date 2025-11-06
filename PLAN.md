@@ -66,6 +66,40 @@
 - **Agent Behavior**: Agent can now proactively check if it's a new week and suggest setting a new goal when appropriate
 
 
+### ✅ Phase 1: Move to OpenAI API (COMPLETED)
+- Migrated from Mistral API to OpenAI API
+- Updated agent.py, config.py, and main.py
+- Changed model from `mistral-small-latest` to `gpt-5-nano`
+- Updated all references and error messages
+- Rich TUI implementation with beautiful terminal formatting
 
-#. Move to OpenAI API. (Mistral overwhelmed by pdf...)
-#. Enable pdf reading, time recording, ...
+### ✅ Task 5: Package Deployment (COMPLETED)
+- **Package Name**: `lalaby`
+- **Installation Method**: pip installable with `pip install -e .`
+- **Console Script**: `lalaby` command for easy access
+- **Files Created**:
+  - `pyproject.toml` - Modern Python packaging configuration
+  - `INSTALL.md` - Comprehensive installation guide
+- **Documentation**: Updated README with installation instructions
+- **Testing**: Successfully installed and verified functionality
+- **Clean Dependencies**: Cleaned up requirements.txt (removed duplicates)
+
+**How to Install:**
+```bash
+cd /Users/davy/repo/cfa-agent
+pip install -e .
+python3 main.py  # or lalaby (if Python bin in PATH)
+```
+
+## Next Phase
+
+### 🎯 Task 6: PDF Reading Support (PLANNED)
+- **Library**: `pypdf` (already installed in requirements.txt)
+- **Tool**: `read_pdf(filename: str) -> str`
+  - Extract text content from PDF files
+  - Support for French learning materials
+  - Handle multi-page documents
+- **Use case**: Users can upload French texts, articles, or lessons in PDF format
+- **Tests**: Unit tests in `tests/test_pdf_reading.py`
+
+
