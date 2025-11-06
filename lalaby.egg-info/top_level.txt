@@ -1,5 +1,0 @@
-agent
-config
-main
-memory
-tools
