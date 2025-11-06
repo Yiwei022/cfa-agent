@@ -66,14 +66,14 @@
 - **Agent Behavior**: Agent can now proactively check if it's a new week and suggest setting a new goal when appropriate
 
 
-### ✅ Phase 1: Move to OpenAI API (COMPLETED)
+### ✅ Task 5: Move to OpenAI API (COMPLETED)
 - Migrated from Mistral API to OpenAI API
 - Updated agent.py, config.py, and main.py
 - Changed model from `mistral-small-latest` to `gpt-5-nano`
 - Updated all references and error messages
 - Rich TUI implementation with beautiful terminal formatting
 
-### ✅ Task 5: Package Deployment (COMPLETED)
+### ✅ Task 6: Package Deployment (COMPLETED)
 - **Package Name**: `lalaby`
 - **Installation Method**: pip installable with `pip install -e .`
 - **Console Script**: `lalaby` command for easy access
@@ -91,9 +91,9 @@ pip install -e .
 python3 main.py  # or lalaby (if Python bin in PATH)
 ```
 
-## Next Phase
+## Next Task
 
-### 🎯 Task 6: PDF Reading Support (PLANNED)
+### 🎯 Task 7: PDF Reading Support (PLANNED)
 - **Library**: `pypdf` (already installed in requirements.txt)
 - **Tool**: `read_pdf(filename: str) -> str`
   - Extract text content from PDF files

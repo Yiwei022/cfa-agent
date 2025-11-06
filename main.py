@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Main CLI entry point for the agentic chatbot."""
+"""Main CLI entry point for the FLE agent."""
 import sys
 from rich.console import Console
 from rich.panel import Panel
@@ -12,34 +12,16 @@ from memory import load_memory, save_memory, get_memory_size_kb
 from config import MEMORY_THRESHOLD_KB
 
 # ASCII Art - Complete block
-ASCII_AIVANCITY = """
-            ███                                             ███   █████              
-           ░░░                                             ░░░   ░░███               
-  ██████   ████  █████ █████  ██████   ████████    ██████  ████  ███████   █████ ████
- ░░░░░███ ░░███ ░░███ ░░███  ░░░░░███ ░░███░░███  ███░░███░░███ ░░░███░   ░░███ ░███ 
-  ███████  ░███  ░███  ░███   ███████  ░███ ░███ ░███ ░░░  ░███   ░███     ░███ ░███ 
- ███░░███  ░███  ░░███ ███   ███░░███  ░███ ░███ ░███  ███ ░███   ░███ ███ ░███ ░███ 
-░░████████ █████  ░░█████   ░░████████ ████ █████░░██████  █████  ░░█████  ░░███████ 
- ░░░░░░░░ ░░░░░    ░░░░░     ░░░░░░░░ ░░░░ ░░░░░  ░░░░░░  ░░░░░    ░░░░░    ░░░░░███ 
-                                                                            ███ ░███ 
-                                                                           ░░██████  
-                                                                            ░░░░░░   """
+ASCII_FLE_AGENT = """
+ ███████ ██      ███████      █████   ██████  ███████ ███    ██ ████████ 
+ ██      ██      ██          ██   ██ ██       ██      ████   ██    ██    
+ █████   ██      █████       ███████ ██   ███ █████   ██ ██  ██    ██    
+ ██      ██      ██          ██   ██ ██    ██ ██      ██  ██ ██    ██    
+ ██      ███████ ███████     ██   ██  ██████  ███████ ██   ████    ██    """
 
-# Position where "ai" ends and "vancity" begins (character index per line)
-COLOR_CHANGE_POSITION = 16  # Adjust this if needed after testing
-
-ASCII_AGENT = """
-                                         █████   
-                                        ░░███    
-  ██████    ███████  ██████  ████████   ███████  
- ░░░░░███  ███░░███ ███░░███░░███░░███ ░░░███░   
-  ███████ ░███ ░███░███████  ░███ ░███   ░███    
- ███░░███ ░███ ░███░███░░░   ░███ ░███   ░███ ███
-░░████████░░███████░░██████  ████ █████  ░░█████ 
- ░░░░░░░░  ░░░░░███ ░░░░░░  ░░░░ ░░░░░    ░░░░░  
-           ███ ░███                              
-          ░░██████                               
-           ░░░░░░                                """
+# Position where "FLE" ends and "agent" begins (character index per line)
+FLE_END_POSITION = 25  # Where FLE ends
+AGENT_START_POSITION = 29  # Where "agent" starts
 
 # Initialize Rich console with custom theme
 console = Console(theme=Theme({
@@ -55,35 +37,33 @@ console = Console(theme=Theme({
 
 def print_ascii_banner():
     """Print the ASCII art banner with colored sections."""
-    # Split the aivancity ASCII art into lines
-    aivancity_lines = ASCII_AIVANCITY.strip("\n").split("\n")
+    # Split the FLE agent ASCII art into lines
+    fle_agent_lines = ASCII_FLE_AGENT.strip("\n").split("\n")
 
     # Create Text object for the banner
     banner = Text()
 
-    # Process each line: color "ai" part brown, "vancity" part blue
-    for i, line in enumerate(aivancity_lines):
-        if len(line) > COLOR_CHANGE_POSITION:
-            # Split at the color change position
-            ai_part = line[:COLOR_CHANGE_POSITION]
-            vancity_part = line[COLOR_CHANGE_POSITION:]
+    # Process each line: color "F" in user color, "LE" in assistant color, "agent" in white
+    for i, line in enumerate(fle_agent_lines):
+        if len(line) > AGENT_START_POSITION:
+            # Split into three parts: F, LE, and agent
+            f_part = line[:9]  # "F" part
+            le_part = line[9:FLE_END_POSITION]  # "LE" part
+            space_part = line[FLE_END_POSITION:AGENT_START_POSITION]  # spacing
+            agent_part = line[AGENT_START_POSITION:]  # "agent" part
 
             # Add colored parts
-            banner.append(ai_part, style="user")  # "ai" in brown
-            banner.append(vancity_part, style="assistant")  # "vancity" in blue
+            banner.append(f_part, style="user")  # "F" in cyan
+            banner.append(le_part, style="assistant")  # "LE" in magenta
+            banner.append(space_part)  # spacing (default color)
+            banner.append(agent_part, style="white")  # "agent" in white
         else:
-            # Line is shorter than change position, color it all as "ai"
+            # Fallback for shorter lines
             banner.append(line, style="user")
 
         # Add newline except for last line
-        if i < len(aivancity_lines) - 1:
+        if i < len(fle_agent_lines) - 1:
             banner.append("\n")
-
-    # Add spacing between "aivancity" and "agent"
-    banner.append("\n\n")
-
-    # Add "agent" below in grey
-    banner.append(ASCII_AGENT.strip("\n"), style="dim")
 
     # Print in a panel
     console.print(Panel(
