@@ -1,6 +1,6 @@
-"""Agent using OpenAI Responses API"""
+"""Agent using OpenAI API"""
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from openai import OpenAI
 from rich.console import Console
 from rich.panel import Panel
@@ -9,10 +9,11 @@ from rich.live import Live
 from rich.spinner import Spinner
 from config import OPENAI_API_KEY, OPENAI_MODEL, load_prompts
 from tools import TOOL_SCHEMAS, execute_tool
+from memory import should_summarize, create_summary_request, compress_memory
 
 
 class Agent:
-    """AI agent powered by OpenAI Responses API with stateful conversations."""
+    """AI agent powered by OpenAI with tool calling capabilities."""
 
     def __init__(self, console: Console = None):
         """Initialize the agent with OpenAI client and prompts.
@@ -28,26 +29,29 @@ class Agent:
         self.prompts = load_prompts()
         self.system_prompt = self.prompts["system_prompt"]
         self.console = console or Console()
-        self.last_response_id: Optional[str] = None  # Track conversation state
-
-    def reset_conversation(self):
-        """Reset the conversation state (for /clear command)."""
-        self.last_response_id = None
 
     def process_message(self, messages: List[Dict[str, Any]], user_input: str) -> tuple[List[Dict[str, Any]], str]:
-        """Process user input and generate response using Responses API.
+        """Process user input and generate response with tool calling.
 
         Args:
-            messages: Conversation history (kept for backwards compatibility and display)
+            messages: Conversation history
             user_input: User's input message
 
         Returns:
             Tuple of (updated_messages, assistant_response)
         """
-        # Add user message to local history (for display/logging purposes)
+        # Add user message
         messages.append({"role": "user", "content": user_input})
 
-        # Call Responses API with stateful conversation tracking
+        # Check if we need to summarize memory
+        if should_summarize(messages):
+            self.console.print("[warning]⚠️  Memory threshold reached, summarizing conversation...[/warning]")
+            messages = self._summarize_and_compress(messages)
+
+        # Prepare messages with system prompt
+        api_messages = [{"role": "system", "content": self.system_prompt}] + messages
+
+        # Call OpenAI API with tools (with spinner)
         with Live(Spinner("dots", text="[dim]Thinking...[/dim]"), console=self.console, transient=True):
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -93,24 +97,24 @@ class Agent:
                 )
                 self.console.print(tool_panel)
 
-                    # Execute tool
-                    result = execute_tool(tool_name, tool_args)
-                    tool_calls_made.append({"name": tool_name, "result": result})
+                result = execute_tool(tool_name, tool_args)
+                tool_results.append(result)
 
-                    # Display result
-                    result_panel = Panel(
-                        f"[dim]{result}[/dim]",
-                        title=f"[bold tool]✓ Result[/bold tool]",
-                        border_style="tool"
-                    )
-                    self.console.print(result_panel)
+                # Display tool result
+                result_panel = Panel(
+                    f"[dim]{result}[/dim]",
+                    title=f"[bold tool]✓ Result[/bold tool]",
+                    border_style="tool"
+                )
+                self.console.print(result_panel)
 
-                    # Add tool execution to local history
-                    messages.append({
-                        "role": "tool",
-                        "name": tool_name,
-                        "content": result
-                    })
+                # Add tool result message
+                messages.append({
+                    "role": "tool",
+                    "name": tool_name,
+                    "tool_call_id": tool_call.id,
+                    "content": result
+                })
 
             # Call API again with tool results (with spinner)
             api_messages = [{"role": "system", "content": self.system_prompt}] + messages

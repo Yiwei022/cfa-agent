@@ -1,13 +1,9 @@
-"""Memory management for conversation history.
-
-Note: With Responses API, state is managed server-side via response_id.
-This module now mainly handles local message storage for display/logging purposes.
-"""
+"""Memory management for conversation history."""
 import json
 import sys
 from pathlib import Path
 from typing import List, Dict, Any
-from config import MEMORY_FILE
+from config import MEMORY_FILE, MEMORY_THRESHOLD_KB, MEMORY_KEEP_LAST_N
 
 
 def load_memory() -> List[Dict[str, Any]]:
@@ -57,6 +53,70 @@ def get_memory_size_kb(messages: List[Dict[str, Any]]) -> float:
     return size_bytes / 1024
 
 
+def should_summarize(messages: List[Dict[str, Any]]) -> bool:
+    """Check if memory should be summarized based on size threshold.
+
+    Args:
+        messages: List of message dictionaries
+
+    Returns:
+        True if memory exceeds threshold and should be summarized
+    """
+    size_kb = get_memory_size_kb(messages)
+    return size_kb > MEMORY_THRESHOLD_KB
+
+
+def create_summary_request(messages: List[Dict[str, Any]], summarization_prompt: str) -> str:
+    """Create a summarization request from conversation history.
+
+    Args:
+        messages: List of message dictionaries to summarize
+        summarization_prompt: Template for summarization prompt
+
+    Returns:
+        Formatted prompt for summarization
+    """
+    # Format conversation for summarization
+    conversation_text = []
+    for msg in messages:
+        role = msg.get("role", "unknown")
+        content = msg.get("content", "")
+
+        if isinstance(content, str):
+            conversation_text.append(f"{role.upper()}: {content}")
+        elif isinstance(content, list):
+            # Handle multipart content (text + tool calls)
+            text_parts = [part.get("text", "") for part in content if part.get("type") == "text"]
+            if text_parts:
+                conversation_text.append(f"{role.upper()}: {' '.join(text_parts)}")
+
+    conversation = "\n".join(conversation_text)
+    return summarization_prompt.format(conversation=conversation)
+
+
+def compress_memory(messages: List[Dict[str, Any]], summary: str) -> List[Dict[str, Any]]:
+    """Compress memory by replacing old messages with a summary.
+
+    Args:
+        messages: Original list of message dictionaries
+        summary: Summary text to replace old messages
+
+    Returns:
+        Compressed list with summary + last N messages
+    """
+    # Create summary message
+    summary_message = {
+        "role": "system",
+        "content": f"[Previous conversation summary]: {summary}"
+    }
+
+    # Keep last N messages
+    recent_messages = messages[-MEMORY_KEEP_LAST_N:] if len(messages) > MEMORY_KEEP_LAST_N else messages
+
+    # Return summary + recent messages
+    return [summary_message] + recent_messages
+
+
 def add_message(messages: List[Dict[str, Any]], role: str, content: Any) -> List[Dict[str, Any]]:
     """Add a new message to the conversation history.
 
@@ -72,60 +132,4 @@ def add_message(messages: List[Dict[str, Any]], role: str, content: Any) -> List
         "role": role,
         "content": content
     })
-    return messages
-
-
-# Note: The following functions are kept for backwards compatibility
-# but are not actively used with the Responses API which manages state server-side
-
-def should_summarize(messages: List[Dict[str, Any]]) -> bool:
-    """Check if memory should be summarized (deprecated with Responses API).
-
-    Args:
-        messages: List of message dictionaries
-
-    Returns:
-        Always False since Responses API handles state management
-    """
-    return False
-
-
-def create_summary_request(messages: List[Dict[str, Any]], summarization_prompt: str) -> str:
-    """Create a summarization request (deprecated with Responses API).
-
-    Args:
-        messages: List of message dictionaries to summarize
-        summarization_prompt: Template for summarization prompt
-
-    Returns:
-        Formatted prompt for summarization
-    """
-    # Kept for backwards compatibility but not used
-    conversation_text = []
-    for msg in messages:
-        role = msg.get("role", "unknown")
-        content = msg.get("content", "")
-
-        if isinstance(content, str):
-            conversation_text.append(f"{role.upper()}: {content}")
-        elif isinstance(content, list):
-            text_parts = [part.get("text", "") for part in content if part.get("type") == "text"]
-            if text_parts:
-                conversation_text.append(f"{role.upper()}: {' '.join(text_parts)}")
-
-    conversation = "\n".join(conversation_text)
-    return summarization_prompt.format(conversation=conversation)
-
-
-def compress_memory(messages: List[Dict[str, Any]], summary: str) -> List[Dict[str, Any]]:
-    """Compress memory (deprecated with Responses API).
-
-    Args:
-        messages: Original list of message dictionaries
-        summary: Summary text to replace old messages
-
-    Returns:
-        Original messages unchanged (no compression needed with Responses API)
-    """
-    # Responses API handles state management, so we just return messages as-is
     return messages

@@ -15,10 +15,11 @@ load_dotenv(PROJECT_DIR / ".env")
 
 # OpenAI API configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = "gpt-5-nano"  
+OPENAI_MODEL = "gpt-5-mini"  
 
-# Note: Memory management is now handled server-side by the Responses API
-# Local memory.json is kept only for display/logging purposes
+# Memory management
+MEMORY_THRESHOLD_KB = 50  # Threshold to trigger summarization
+MEMORY_KEEP_LAST_N = 10   # Keep last N messages after summarization
 
 # Load prompts from YAML
 def load_prompts():
