@@ -15,7 +15,7 @@ load_dotenv(PROJECT_DIR / ".env")
 
 # OpenAI API configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = "gpt-5-mini"  # Using Responses API with stateful conversations
+OPENAI_MODEL = "gpt-5-nano"  
 
 # Note: Memory management is now handled server-side by the Responses API
 # Local memory.json is kept only for display/logging purposes

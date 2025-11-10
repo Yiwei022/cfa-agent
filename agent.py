@@ -49,57 +49,49 @@ class Agent:
 
         # Call Responses API with stateful conversation tracking
         with Live(Spinner("dots", text="[dim]Thinking...[/dim]"), console=self.console, transient=True):
-            try:
-                response = self.client.responses.create(
-                    model=self.model,
-                    instructions=self.system_prompt,  # System prompt as instructions
-                    input=user_input,  # Current user message
-                    previous_response_id=self.last_response_id,  # Maintain conversation state
-                    tools=TOOL_SCHEMAS,
-                    reasoning_effort="minimal",
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=api_messages,
+                tools=TOOL_SCHEMAS,
+            )
+
+        assistant_message = response.choices[0].message
+
+        # Handle tool calls if present
+        if assistant_message.tool_calls:
+            # Add assistant message with tool calls
+            messages.append({
+                "role": "assistant",
+                "content": assistant_message.content or "",
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments
+                        }
+                    }
+                    for tc in assistant_message.tool_calls
+                ]
+            })
+
+            # Execute tools and collect results
+            tool_results = []
+            for tool_call in assistant_message.tool_calls:
+                tool_name = tool_call.function.name
+                tool_args = json.loads(tool_call.function.arguments)
+
+                # Display tool execution with rich formatting
+                args_json = json.dumps(tool_args, indent=2)
+                syntax = Syntax(args_json, "json", theme="monokai", line_numbers=False)
+
+                tool_panel = Panel(
+                    syntax,
+                    title=f"[bold tool]⚙️  Executing: {tool_name}[/bold tool]",
+                    border_style="tool"
                 )
-            except Exception as e:
-                # Fallback error handling
-                error_msg = f"API Error: {str(e)}"
-                self.console.print(f"[error]{error_msg}[/error]")
-                messages.append({"role": "assistant", "content": error_msg})
-                return messages, error_msg
-
-        # Store response ID for next call
-        self.last_response_id = response.id
-
-        # Extract the main response content
-        assistant_content = ""
-        tool_calls_made = []
-        
-        # Handle different output types from Responses API
-        if hasattr(response, 'output') and response.output:
-            for output in response.output:
-                output_type = getattr(output, 'type', None)
-                
-                if output_type == "message":
-                    # Text response
-                    if hasattr(output, 'content'):
-                        for content_part in output.content:
-                            if hasattr(content_part, 'text'):
-                                assistant_content += content_part.text
-                            elif isinstance(content_part, str):
-                                assistant_content += content_part
-                
-                elif output_type == "function_call":
-                    # Tool call detected - execute it
-                    tool_name = output.function.name
-                    tool_args = json.loads(output.function.arguments) if isinstance(output.function.arguments, str) else output.function.arguments
-
-                    # Display tool execution
-                    args_json = json.dumps(tool_args, indent=2)
-                    syntax = Syntax(args_json, "json", theme="monokai", line_numbers=False)
-                    tool_panel = Panel(
-                        syntax,
-                        title=f"[bold tool]⚙️  Executing: {tool_name}[/bold tool]",
-                        border_style="tool"
-                    )
-                    self.console.print(tool_panel)
+                self.console.print(tool_panel)
 
                     # Execute tool
                     result = execute_tool(tool_name, tool_args)
@@ -120,30 +112,56 @@ class Agent:
                         "content": result
                     })
 
-        # Fallback: try alternative response structure
-        if not assistant_content and not tool_calls_made:
-            # Try to extract from different response structure
-            if hasattr(response, 'content'):
-                if isinstance(response.content, list):
-                    for item in response.content:
-                        if hasattr(item, 'text'):
-                            assistant_content += item.text
-                elif isinstance(response.content, str):
-                    assistant_content = response.content
-            elif hasattr(response, 'message'):
-                assistant_content = response.message.get('content', '')
+            # Call API again with tool results (with spinner)
+            api_messages = [{"role": "system", "content": self.system_prompt}] + messages
+            with Live(Spinner("dots", text="[dim]Generating response...[/dim]"), console=self.console, transient=True):
+                final_response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=api_messages,
+                    tools=TOOL_SCHEMAS,
+                )
 
-        # Add assistant response to local history
-        if assistant_content:
-            messages.append({"role": "assistant", "content": assistant_content})
-        elif tool_calls_made:
-            # If we only had tool calls, the API might send another response with the final message
-            # For now, add a placeholder
-            assistant_content = "[Tool execution completed]"
-            messages.append({"role": "assistant", "content": assistant_content})
+            final_message = final_response.choices[0].message
+            final_content = final_message.content or ""
+
+            # Handle edge case: empty response after tool execution
+            if not final_content and not final_message.tool_calls:
+                # Mistral sometimes returns empty response after tool errors
+                final_content = "I apologize, I encountered an issue processing that request. Please try again."
+            
+            messages.append({"role": "assistant", "content": final_content})
+
+            return messages, final_content
+
         else:
-            # No content at all
-            assistant_content = "I apologize, I encountered an issue generating a response."
-            messages.append({"role": "assistant", "content": assistant_content})
+            # No tool calls, just return the response
+            content = assistant_message.content or ""
+            messages.append({"role": "assistant", "content": content})
+            return messages, content
 
-        return messages, assistant_content
+    def _summarize_and_compress(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Summarize conversation and compress memory.
+
+        Args:
+            messages: Current conversation history
+
+        Returns:
+            Compressed message history
+        """
+        # Create summarization request
+        summary_prompt = create_summary_request(messages, self.prompts["summarization_prompt"])
+
+        # Call OpenAI to generate summary (with spinner)
+        with Live(Spinner("dots", text="[dim]Summarizing conversation...[/dim]"), console=self.console, transient=True):
+            summary_response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": summary_prompt}]
+            )
+
+        summary = summary_response.choices[0].message.content
+
+        # Compress memory with summary
+        compressed = compress_memory(messages, summary)
+        self.console.print(f"[success]✓ Memory compressed: {len(messages)} → {len(compressed)} messages[/success]")
+
+        return compressed
