@@ -15,7 +15,7 @@ load_dotenv(PROJECT_DIR / ".env")
 
 # OpenAI API configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = "gpt-5-nano"  
+OPENAI_MODEL = "gpt-5-mini"  
 
 # Memory management
 MEMORY_THRESHOLD_KB = 50  # Threshold to trigger summarization

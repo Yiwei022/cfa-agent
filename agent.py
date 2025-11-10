@@ -57,6 +57,7 @@ class Agent:
                 model=self.model,
                 messages=api_messages,
                 tools=TOOL_SCHEMAS,
+                reasoning_effort="minimal",
             )
 
         assistant_message = response.choices[0].message
@@ -123,6 +124,7 @@ class Agent:
                     model=self.model,
                     messages=api_messages,
                     tools=TOOL_SCHEMAS,
+                    reasoning_effort="low",
                 )
 
             final_message = final_response.choices[0].message
@@ -159,7 +161,8 @@ class Agent:
         with Live(Spinner("dots", text="[dim]Summarizing conversation...[/dim]"), console=self.console, transient=True):
             summary_response = self.client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "user", "content": summary_prompt}]
+                messages=[{"role": "user", "content": summary_prompt}],
+                reasoning_effort="low"
             )
 
         summary = summary_response.choices[0].message.content
