@@ -11,7 +11,6 @@ from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.styles import Style as PTStyle
 from agent import Agent
 from memory import load_memory, save_memory, get_memory_size_kb
-from config import MEMORY_THRESHOLD_KB
 
 # ASCII Art - Complete block
 ASCII_FLE_AGENT = """
@@ -94,12 +93,12 @@ Just type your message to chat with the agent!
 def print_stats(messages):
     """Print memory statistics."""
     size_kb = get_memory_size_kb(messages)
-    percentage = (size_kb / MEMORY_THRESHOLD_KB) * 100
 
-    stats_text =Markdown(f"""
-- **Message Count:** {len(messages)} messages
-- **Memory Size:** {size_kb:.2f} KB / {MEMORY_THRESHOLD_KB} KB ({percentage:.1f}%)
-- **Status:** {'[warning]⚠️  Approaching threshold[/warning]' if size_kb > MEMORY_THRESHOLD_KB * 0.8 else '[success]✓ Healthy[/success]'}
+    stats_text = Markdown(f"""
+- **Message Count:** {len(messages)} messages (local display history)
+- **Local Storage Size:** {size_kb:.2f} KB
+- **API State:** Managed server-side by Responses API
+- **Note:** Conversation state is tracked automatically via response IDs
     """)
     console.print(Panel(stats_text, title="[bold user]Memory Statistics[/bold user]", border_style="user"))
 
@@ -110,7 +109,7 @@ def main():
     console.print()
     print_ascii_banner()
     console.print()
-    console.print("[dim]Powered by OpenAI with Function Calling[/dim]", justify="center")
+    console.print("[dim]Powered by OpenAI Responses API with Stateful Conversations[/dim]", justify="center")
     console.print("[dim]Type /help for commands, /exit to quit[/dim]\n", justify="center")
 
     # Initialize agent
@@ -187,6 +186,7 @@ def main():
 
                 elif command in ["/clear", "/reset"]:
                     messages = []
+                    agent.reset_conversation()  # Reset Responses API conversation state
                     save_memory(messages)
                     console.print("[success]✓ Conversation history cleared[/success]\n")
                     continue

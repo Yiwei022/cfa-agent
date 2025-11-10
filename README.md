@@ -4,7 +4,7 @@
 
 **An intelligent French language learning companion with goal tracking and progress monitoring**
 
-Lalaby is an AI-powered command-line assistant that helps you learn French through conversation while tracking your study goals and progress. Built with OpenAI's function calling capabilities, it combines language practice with smart learning analytics.
+Lalaby is an AI-powered command-line assistant that helps you learn French through conversation while tracking your study goals and progress. Built with OpenAI's Responses API for stateful conversations, it combines language practice with smart learning analytics.
 
 ---
 
@@ -39,6 +39,12 @@ Lalaby is an AI-powered command-line assistant that helps you learn French throu
 - Syntax-highlighted tool execution
 - Smooth loading spinners
 - Markdown rendering support
+
+### 🔄 Stateful Conversations
+- Powered by OpenAI Responses API
+- Server-side conversation state management
+- No manual memory management needed
+- Seamless multi-turn interactions
 
 ---
 
@@ -301,13 +307,12 @@ Create a `.env` file:
 OPENAI_API_KEY=your-api-key-here
 ```
 
-### Memory Settings
+### API Settings
 
 In `config.py`:
 ```python
-MEMORY_THRESHOLD_KB = 50    # Trigger summarization at 50KB
-MEMORY_KEEP_LAST_N = 10     # Keep last 10 messages after summarization
-OPENAI_MODEL = "gpt-5-nano" # OpenAI model to use
+OPENAI_MODEL = "gpt-5-mini"  # OpenAI model to use with Responses API
+# Note: Memory management handled server-side by Responses API
 ```
 
 ### System Prompt
@@ -501,19 +506,19 @@ MIT License - See [LICENCE](LICENCE) file for details.
 ### How It Works
 
 ```
-User Input → Agent → OpenAI API → Tool Selection
+User Input → Agent → Responses API (with previous_response_id)
                 ↓                        ↓
-            Memory ← Tool Execution ← Results
+      Store response.id    ← Stateful Context + Tool Calls
                 ↓                        ↓
-          Response ← OpenAI API ← Tool Results
+     Local Display History ← Tool Execution ← Final Response
 ```
 
 ### Key Components
 
 **Agent (`agent.py`)**
-- Manages OpenAI API communication
-- Handles function calling workflow
-- Implements memory compression
+- Manages OpenAI Responses API communication
+- Tracks conversation state via response IDs
+- Handles stateful conversation flow
 - Processes tool execution
 
 **Tools (`tools.py`)**
@@ -523,14 +528,13 @@ User Input → Agent → OpenAI API → Tool Selection
 - Error handling
 
 **Memory (`memory.py`)**
-- Conversation persistence
-- Size monitoring
-- Automatic summarization
-- Load/save operations
+- Local conversation persistence (for display)
+- Simple load/save operations
+- State managed server-side by Responses API
 
 **Main (`main.py`)**
 - CLI interface with Rich UI
-- Command handling
+- Command handling (including conversation reset)
 - User interaction loop
 - Startup checks
 
@@ -539,8 +543,9 @@ User Input → Agent → OpenAI API → Tool Selection
 ## 🎓 Educational Note
 
 This project demonstrates:
+- **Stateful Conversations** - Using OpenAI's Responses API for automatic state management
 - **Function Calling** - How LLMs use external tools
-- **Memory Management** - Handling conversation context
+- **Response ID Tracking** - Maintaining conversation context across API calls
 - **Agent Architecture** - Building autonomous AI systems
 - **API Integration** - Working with modern LLM APIs
 - **Testing** - Writing reliable AI applications

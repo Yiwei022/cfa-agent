@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a pedagogical demonstration of AI agents with function calling using the Mistral API. It's a simple agentic CLI chatbot built for the PGE3-EN Coding for AI course at Aivancity (2025-2026). The codebase is intentionally minimal to demonstrate core agentic concepts clearly.
+This is a pedagogical demonstration of AI agents with function calling using OpenAI's Responses API. It's a simple agentic CLI chatbot built for the PGE3-EN Coding for AI course at Aivancity (2025-2026). The codebase is intentionally minimal to demonstrate core agentic concepts clearly.
 
 ## Development Commands
 
@@ -14,7 +14,7 @@ python -m venv .venv
 source .venv/bin/activate  # macOS/Linux
 # OR .venv\Scripts\activate  # Windows
 pip install -r requirements.txt
-echo "MISTRAL_API_KEY=your-key" > .env
+echo "OPENAI_API_KEY=your-key" > .env
 ```
 
 ### Running
@@ -33,35 +33,35 @@ python -m pytest <path>::<test_name> -v # Run single test
 ## Architecture
 
 ### Core Agent Loop
-The agent follows a multi-step API call pattern for function calling:
+The agent uses OpenAI's Responses API with stateful conversation management:
 
-1. User sends message → Added to conversation history
-2. Check if memory threshold exceeded → Summarize if needed
-3. **First API call**: Agent receives message + tool schemas, decides whether to call tools
-4. If tools called: Execute Python functions, add results to conversation
-5. **Second API call**: Agent receives tool results, generates final response
+1. User sends message → Sent to Responses API with previous_response_id
+2. **Responses API call**: Stateful context maintained server-side via response IDs
+3. API decides whether to call tools based on instructions and conversation state
+4. If tools called: Execute Python functions locally, display results
+5. Response includes tool outputs and final message
+6. Store response.id for next conversation turn
 
-This two-call pattern is fundamental to how function calling works with Mistral API.
+This single-call pattern with server-side state management is the key feature of the Responses API.
 
 ### File Responsibilities
 
-- **[main.py](main.py)** - CLI chat loop, command handling (`/exit`, `/clear`, `/help`, `/reset`), saves memory on exit/interrupt
-- **[agent.py](agent.py)** - Mistral API integration, implements the two-call tool execution pattern, handles memory compression
+- **[main.py](main.py)** - CLI chat loop, command handling (`/exit`, `/clear`, `/help`, `/reset`), saves local message history, resets conversation state
+- **[agent.py](agent.py)** - OpenAI Responses API integration, stateful conversation tracking via response IDs, tool execution
 - **[tools.py](tools.py)** - Tool implementations (Python functions), tool schemas (JSON), tool registry (dict mapping names to functions), execution dispatcher
-- **[memory.py](memory.py)** - JSON persistence, size calculation (KB-based), summarization logic (keep last N + summary)
-- **[config.py](config.py)** - Environment variables, model selection (`mistral-small-latest`), thresholds (`MEMORY_THRESHOLD_KB=50`, `MEMORY_KEEP_LAST_N=10`)
-- **[prompts.yaml](prompts.yaml)** - System prompt (agent behavior), summarization prompt (memory compression)
+- **[memory.py](memory.py)** - Local JSON persistence for display purposes (actual state managed by Responses API server-side)
+- **[config.py](config.py)** - Environment variables, model selection (`gpt-5-mini`)
+- **[prompts.yaml](prompts.yaml)** - System prompt (agent behavior) passed as instructions to Responses API
 
 ### Memory Management Strategy
 
-When conversation exceeds `MEMORY_THRESHOLD_KB` (50KB):
-1. Agent calls Mistral API with summarization prompt
-2. Old messages (beyond last 10) → Compressed into summary
-3. Recent messages (last 10) → Kept verbatim
-4. New format: `[summary_message] + recent_messages`
-5. This "sliding window" keeps context manageable
+With the Responses API, memory management is handled server-side:
+1. **Stateful by default**: API tracks full conversation history via `previous_response_id`
+2. **No manual summarization needed**: Context window managed automatically by OpenAI
+3. **Local message history**: Kept in `memory.json` for display and logging purposes only
+4. **Reset conversation**: Use `/clear` command to reset `last_response_id` and start fresh
 
-Why this matters: LLMs have token limits. This simple KB-based heuristic prevents exceeding them while preserving recent context.
+Why this matters: The Responses API eliminates the complexity of manual memory management. The server maintains state, and you simply pass the previous response ID to continue the conversation.
 
 ### Tool System Architecture
 
@@ -108,18 +108,19 @@ Tests focus on:
 - Memory save/load/compress operations
 - Size calculations and thresholds
 
-Tests intentionally don't mock the Mistral API (would need API key for integration tests). Current 18 tests cover non-API functionality.
+Tests intentionally don't mock the OpenAI Responses API (would need API key for integration tests). Current tests cover non-API functionality.
 
 ## Common Pitfalls
 
 1. **Don't break tool schema sync** - When modifying a tool, update function signature, registry entry, AND schema
-2. **Maintain message format** - Don't modify message structure without understanding API requirements
-3. **Memory threshold is KB not tokens** - Simplified for demo, production would use token counting
+2. **Response ID is critical** - Always store and pass `previous_response_id` to maintain conversation state
+3. **Local vs API state** - Local `messages` array is for display only; actual state is server-side
 4. **Tool results must be strings** - Agent can't interpret other types
-5. **System prompt is prepended each call** - It's not persisted in memory.json, added dynamically
+5. **System prompt as instructions** - Passed as `instructions` parameter, not in messages array
+6. **Reset conversation properly** - Clear both local messages AND `last_response_id` when resetting
 
 ## Extension Points (Phase 2 Planned)
 
-- Rich TUI with syntax highlighting and formatted panels (not yet implemented)
+- Rich TUI with syntax highlighting and formatted panels (already implemented)
 - Additional tools (read_file, etc.) - follow the three-component pattern
-- Alternative model selection - change `MISTRAL_MODEL` in config.py
+- Alternative model selection - change `OPENAI_MODEL` in config.py
