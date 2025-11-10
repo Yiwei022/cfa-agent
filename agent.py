@@ -57,6 +57,7 @@ class Agent:
                 model=self.model,
                 messages=api_messages,
                 tools=TOOL_SCHEMAS,
+                reasoning_effort="minimal"
             )
 
         assistant_message = response.choices[0].message
